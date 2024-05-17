@@ -1,9 +1,12 @@
+use std::thread::sleep;
+use std::time::Duration;
+
 struct Table<'a> {
     name: String,
     entries: Vec<Entry<'a>>
 }
 
-impl Table {
+impl<'a> Table<'a> {
     pub fn new() {
 
     }
@@ -25,17 +28,36 @@ struct Entry<'a> {
     key: String,
     value: Vec<String>,
     primary_key: bool,
-    foreign_key: Option<&'a Entry<'a>>
+    non_null: bool,
+    unique: bool,
+    foreign_key: Option<Vec<&'a Entry<'a>>>
 }
 
-impl Entry {
-    pub fn new(key: String, value: Vec<String>, primary_key: bool, foreign_key: Option<& Entry>) -> Self {
+impl<'a> Entry<'a> {
+    pub fn new(key: String, value: Vec<String>, primary_key: bool, non_null: bool, unique: bool, foreign_key: Option<Vec<&'a Entry<'a>>>) -> Self {
+
+        if primary_key {
+            if non_null == false || value.is_empty(){
+                panic!("Primary Key can not be null!")
+            }
+
+            if unique == false {
+                // Todo: Add actual check unique logic
+                panic!("Primary Key has to be unique")
+            }
+        }
+
         Self {
-            key, value, primary_key, foreign_key
+            key, value, primary_key, non_null, unique, foreign_key
         }
     }
 }
 
 fn main() {
-    println!("This is a database management engine. Maybe it is an HTTP server? Or a Linux systemd service? Who knows?");
+    loop {
+        println!("This is a database management engine. Maybe it is an HTTP server? Or a Linux systemd service? Who knows?");
+
+        sleep(Duration::from_secs(5))
+    }
+
 }
