@@ -1,3 +1,6 @@
+#Project Specific
+db.json
+
 # Rust
 /target/
 **/*.rs.bk

@@ -1,3 +1,4 @@
+use std::io::Error;
 use axum::{
     routing::{get, post},
     Router, Json, extract::State,
@@ -6,6 +7,8 @@ use std::sync::Arc;
 use tokio::{signal::ctrl_c, spawn};
 use log::{error, info, LevelFilter};
 use tokio::sync::RwLock;
+use tokio::fs::{File, OpenOptions};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt, BufReader};
 use core::table::Table;
 use core::column::Column;
 use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest};
@@ -17,7 +20,7 @@ async fn main() {
         .format_timestamp_millis()
         .init();
 
-    let app_state: Arc<AppState> = Arc::new(AppState::new());
+    let app_state: Arc<AppState> = Arc::new(AppState::load().await.unwrap_or_else(|_| AppState::new()));
 
     let app = Router::new()
         .route("/", get(root))
@@ -28,7 +31,7 @@ async fn main() {
         .route("/update_table", post(update_table))
         .route("/insert_column", post(insert_column))
         .route("/insert_row", post(insert_row))
-        .with_state(app_state);
+        .with_state(app_state.clone());
 
     let address = "0.0.0.0:3000";
     let listener = match tokio::net::TcpListener::bind(address).await {
@@ -49,8 +52,14 @@ async fn main() {
     });
 
     // Handle Ctrl+C (SIGINT) to gracefully shut down the server
-    let _ = spawn(async {
-        ctrl_c().await.expect("Failed to listen for Ctrl+C");
+    let _ = spawn({
+        let app_state = app_state.clone();
+        async move {
+            ctrl_c().await.expect("Failed to listen for Ctrl+C");
+            if let Err(err) = app_state.save().await {
+                error!("Failed to save state: {}", err);
+            }
+        }
     }).await;
 
     // Wait for server task to finish (though it should run indefinitely until SIGINT)
@@ -87,6 +96,7 @@ async fn create(
     };
 
     state.create(new_table.clone()).await;
+    state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after creating
 
     info!("Created table: {:?}", new_table);
     Ok(Json(new_table))
@@ -99,6 +109,7 @@ async fn drop_table(
     let table_name = payload.name;
 
     if state.drop_table(&table_name).await {
+        state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after dropping
         info!("Dropped table: {}", table_name);
         Ok(Json(format!("Dropped table '{}'", table_name)))
     } else {
@@ -116,7 +127,8 @@ async fn update_table(
     if let Some(mut table) = state.get(&current_name).await {
         table.name = new_name.clone();
         state.drop_table(&current_name).await;
-        state.create(table).await;
+        state.create(table.clone()).await;
+        state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after updating
         info!("Updated table name from '{}' to '{}'", current_name, new_name);
         Ok(Json(format!("Updated table name from '{}' to '{}'", current_name, new_name)))
     } else {
@@ -140,7 +152,8 @@ async fn insert_column(
         );
         table.add_column(column.clone());
         state.drop_table(&table_name).await;
-        state.create(table).await;
+        state.create(table.clone()).await;
+        state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after inserting column
         info!("Inserted column into table '{}': {:?}", table_name, column);
         Ok(Json(column))
     } else {
@@ -176,10 +189,12 @@ async fn create_table(
     }
 
     state.create(new_table.clone()).await;
+    state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after creating table
 
     info!("Created table: {:?}", new_table);
     Ok(Json(new_table))
 }
+
 
 async fn insert_row(
     State(state): State<Arc<AppState>>,
@@ -197,7 +212,8 @@ async fn insert_row(
 
         table.add_row(row.clone());
         state.drop_table(&table_name).await;
-        state.create(table).await;
+        state.create(table.clone()).await;
+        state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after inserting row
         info!("Inserted row into table '{}': {:?}", table_name, row);
         Ok(Json(row.values.into_iter().map(|cell| cell.value).collect()))
     } else {
@@ -215,6 +231,27 @@ impl AppState {
         AppState {
             tables: Arc::new(RwLock::new(Vec::new())),
         }
+    }
+
+    pub async fn load() -> Result<Self, Error> {
+        let file = File::open("db.json").await.map_err(|_| Error::new(io::ErrorKind::NotFound, "File not found"))?;
+        let mut reader = BufReader::new(file);
+        let mut contents = String::new();
+        reader.read_to_string(&mut contents).await?;
+        let tables: Vec<Table> = serde_json::from_str(&contents)?;
+        Ok(AppState {
+            tables: Arc::new(RwLock::new(tables)),
+        })
+    }
+
+    async fn save(&self) -> Result<(), Error> {
+        let tables = self.get_all().await;
+        let contents = serde_json::to_string(&tables)?;
+        let file = OpenOptions::new().create(true).write(true).truncate(true).open("db.json").await?;
+        let mut writer = io::BufWriter::new(file);
+        writer.write_all(contents.as_bytes()).await?;
+        writer.flush().await?;
+        Ok(())
     }
 
     pub async fn create(&self, table: Table) {
