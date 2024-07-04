@@ -1,23 +1,23 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Entry {
+pub struct Column {
     pub key: String,
     pub value: String,
     pub primary_key: bool,
     pub non_null: bool,
     pub unique: bool,
-    pub foreign_key: Option<Vec<Box<Entry>>>,
+    pub foreign_key: Option<Vec<Box<Column>>>,
 }
 
-impl Entry {
+impl Column {
     pub fn new(
         key: String,
         value: String,
         primary_key: bool,
         non_null: bool,
         unique: bool,
-        foreign_key: Option<Vec<Box<Entry>>>,
+        foreign_key: Option<Vec<Box<Column>>>,
     ) -> Self {
         if primary_key && (non_null == false || value.is_empty()) {
             panic!("Primary Key cannot be null or empty!");

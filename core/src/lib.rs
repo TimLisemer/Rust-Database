@@ -1,3 +1,3 @@
 pub mod table;
-pub mod entry;
+pub mod column;
 pub mod request_types;

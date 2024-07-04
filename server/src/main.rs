@@ -8,8 +8,8 @@ use log::{error, info, LevelFilter};
 use tokio::sync::RwLock;
 use serde::Deserialize;
 use core::table::Table;
-use core::entry::Entry;
-use core::request_types::{CreateTableRequest, DropTableRequest, UpdateTableRequest, InsertEntryRequest};
+use core::column::Column;
+use core::request_types::{CreateTableRequest, DropTableRequest, UpdateTableRequest, InsertColumnRequest};
 
 #[tokio::main]
 async fn main() {
@@ -26,7 +26,7 @@ async fn main() {
         .route("/create", post(create_table))
         .route("/drop_table", post(drop_table))
         .route("/update_table", post(update_table))
-        .route("/insert_entry", post(insert_entry))
+        .route("/insert_column", post(insert_column))
         .with_state(app_state); // Clone app_state for the server task
 
     let address = "0.0.0.0:3000";
@@ -83,7 +83,7 @@ async fn create_table(
 
     let new_table = Table {
         name: table_name.clone(),
-        entries: Vec::new(),
+        columns: Vec::new(),
     };
 
     state.create(new_table.clone()).await;
@@ -124,14 +124,14 @@ async fn update_table(
     }
 }
 
-async fn insert_entry(
+async fn insert_column(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<InsertEntryRequest>
-) -> Result<Json<Entry>, String> {
+    Json(payload): Json<InsertColumnRequest>
+) -> Result<Json<Column>, String> {
     let table_name = payload.table_name;
 
     if let Some(mut table) = state.get(table_name.clone()).await {
-        let entry = Entry::new(
+        let column = Column::new(
             payload.key,
             payload.value,
             payload.primary_key,
@@ -139,11 +139,11 @@ async fn insert_entry(
             payload.unique,
             payload.foreign_key.map(|fk| fk.into_iter().map(Box::new).collect()),
         );
-        table.add_entry(entry.clone());
+        table.add_column(column.clone());
         state.drop_table(table_name.clone()).await;
         state.create(table).await;
-        info!("Inserted entry into table '{}': {:?}", table_name, entry);
-        Ok(Json(entry))
+        info!("Inserted column into table '{}': {:?}", table_name, column);
+        Ok(Json(column))
     } else {
         Err(format!("Table '{}' does not exist", table_name))
     }
