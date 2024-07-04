@@ -8,7 +8,7 @@ use log::{error, info, LevelFilter};
 use tokio::sync::RwLock;
 use core::table::Table;
 use core::column::Column;
-use core::request_types::{CreateTableRequest, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest};
+use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest};
 
 #[tokio::main]
 async fn main() {
@@ -22,7 +22,8 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root))
         .route("/tables", get(get_tables))
-        .route("/create", post(create_table))
+        .route("/create", post(create))
+        .route("/create_table", post(create_table))
         .route("/drop_table", post(drop_table))
         .route("/update_table", post(update_table))
         .route("/insert_column", post(insert_column))
@@ -69,9 +70,9 @@ async fn get_tables(State(state): State<Arc<AppState>>) -> Json<Vec<Table>> {
     json
 }
 
-async fn create_table(
+async fn create(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<CreateTableRequest>
+    Json(payload): Json<CreateRequests>
 ) -> Result<Json<Table>, String> {
     let table_name = payload.name;
 
@@ -145,6 +146,39 @@ async fn insert_column(
     } else {
         Err(format!("Table '{}' does not exist", table_name))
     }
+}
+
+async fn create_table(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<CreateTableRequests>
+) -> Result<Json<Table>, String> {
+    let table_name = payload.name;
+
+    if state.get(&table_name).await.is_some() {
+        return Err(format!("Table '{}' already exists", table_name));
+    }
+
+    let mut new_table = Table {
+        name: table_name.clone(),
+        columns: Vec::new(),
+        rows: Vec::new(),
+    };
+
+    for insert_column_request in &payload.insert_column_requests {
+        let column = Column::new(
+            insert_column_request.key.clone(),
+            insert_column_request.primary_key,
+            insert_column_request.non_null,
+            insert_column_request.unique,
+            insert_column_request.foreign_key.clone().map(|fk| fk.into_iter().map(Box::new).collect()),
+        );
+        new_table.add_column(column);
+    }
+
+    state.create(new_table.clone()).await;
+
+    info!("Created table: {:?}", new_table);
+    Ok(Json(new_table))
 }
 
 async fn insert_row(

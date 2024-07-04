@@ -2,7 +2,7 @@
 
 use reqwest::{Client, Response};
 use serde_json::json;
-use core::request_types::{CreateTableRequest, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest};
+use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest};
 use core::row::Row;
 use core::value::Value;
 
@@ -10,30 +10,76 @@ use core::value::Value;
 async fn main() {
     let client = Client::new();
 
-    create(&client, &CreateTableRequest { name: "test table".to_string() }).await.unwrap();
+    create(&client, &CreateRequests { name: "test table".to_string() }).await.unwrap();
 
     drop_table(&client, &DropTableRequest { name: "test table".to_string() }).await.unwrap();
 
-    create(&client, &CreateTableRequest { name: "test table again".to_string() }).await.unwrap();
+    create(&client, &CreateRequests { name: "test table again".to_string() }).await.unwrap();
 
     update_table(&client, &UpdateTableRequest { current_name: "test table again".to_string(), new_name: "test table".to_string() }).await.unwrap();
 
-    insert_column(&client, &InsertColumnRequest {
+    let insert_column_request = InsertColumnRequest {
         table_name: "test table".to_string(),
         key: "test key".to_string(),
         primary_key: true,
         non_null: true,
         unique: true,
         foreign_key: None,
-    }).await.unwrap();
+    };
 
-    insert_row(&client, &InsertRowRequest {
+    let insert_column_request2 = InsertColumnRequest {
+        table_name: "test table".to_string(),
+        key: "test key2".to_string(),
+        primary_key: true,
+        non_null: true,
+        unique: true,
+        foreign_key: None,
+    };
+
+
+
+    insert_column(&client, &insert_column_request).await.unwrap();
+    insert_column(&client, &insert_column_request2).await.unwrap();
+
+    let insert_row_request = InsertRowRequest {
         table_name: "test table".to_string(),
         row: Row::new(vec![Value::new("test value".to_string()), Value::new("test value2".to_string())]),
+    };
+
+    insert_row(&client, &insert_row_request).await.unwrap();
+
+    let insert_column_request3 = InsertColumnRequest {
+        table_name: "test create table".to_string(),
+        key: "test create key".to_string(),
+        primary_key: true,
+        non_null: true,
+        unique: true,
+        foreign_key: None,
+    };
+
+    let insert_column_request4 = InsertColumnRequest {
+        table_name: "test create table".to_string(),
+        key: "test create key2".to_string(),
+        primary_key: true,
+        non_null: true,
+        unique: true,
+        foreign_key: None,
+    };
+
+    create_table(&client, &CreateTableRequests {
+        name: "test create table".to_string(),
+        insert_column_requests: vec![insert_column_request3, insert_column_request4],
     }).await.unwrap();
+
+    let insert_row_request2 = InsertRowRequest {
+        table_name: "test create table".to_string(),
+        row: Row::new(vec![Value::new("test create value".to_string()), Value::new("test create value2".to_string())]),
+    };
+
+    insert_row(&client, &insert_row_request2).await.unwrap();
 }
 
-async fn create(client: &Client, create_table_request: &CreateTableRequest) -> Result<Response, reqwest::Error> {
+async fn create(client: &Client, create_table_request: &CreateRequests) -> Result<Response, reqwest::Error> {
     let url = format!("http://localhost:3000/create");
     let body = json!({
         "name": create_table_request.name,
@@ -41,6 +87,18 @@ async fn create(client: &Client, create_table_request: &CreateTableRequest) -> R
 
     let resp = client.post(&url)
         .json(&body)
+        .send()
+        .await?;
+
+    println!("Create Table Response: {:?}", resp);
+    Ok(resp)
+}
+
+async fn create_table(client: &Client, create_table_request: &CreateTableRequests) -> Result<Response, reqwest::Error> {
+    let url = format!("http://localhost:3000/create_table");
+
+    let resp = client.post(&url)
+        .json(create_table_request)
         .send()
         .await?;
 

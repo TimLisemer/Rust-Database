@@ -3,8 +3,23 @@ use crate::column::Column;
 use crate::row::Row;
 
 #[derive(Deserialize)]
-pub struct CreateTableRequest {
+pub struct CreateRequests {
     pub name: String,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct CreateTableRequests {
+    pub name: String,
+    pub insert_column_requests: Vec<InsertColumnRequest>
+}
+
+impl CreateTableRequests {
+    pub fn new(name: String) -> Self {
+        CreateTableRequests {
+            name,
+            insert_column_requests: Vec::new()
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize)]
