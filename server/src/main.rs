@@ -1,8 +1,8 @@
 use axum::{
     routing::{get, post},
-    Router, Json, extract::{State},
+    Router, Json, extract::State,
 };
-use std::sync::{Arc};
+use std::sync::Arc;
 use tokio::{signal::ctrl_c, spawn};
 use log::{error, info, LevelFilter};
 use tokio::sync::RwLock;
@@ -27,7 +27,7 @@ async fn main() {
         .route("/update_table", post(update_table))
         .route("/insert_column", post(insert_column))
         .route("/insert_row", post(insert_row))
-        .with_state(app_state); // Clone app_state for the server task
+        .with_state(app_state);
 
     let address = "0.0.0.0:3000";
     let listener = match tokio::net::TcpListener::bind(address).await {
@@ -63,9 +63,7 @@ async fn root() -> &'static str {
 }
 
 async fn get_tables(State(state): State<Arc<AppState>>) -> Json<Vec<Table>> {
-    let tables = state.get_all().await.iter()
-        .map(|table| table.clone()).collect();
-
+    let tables = state.get_all().await;
     let json = Json(tables);
     info!("Tables: {:?}", json);
     json
@@ -77,7 +75,7 @@ async fn create_table(
 ) -> Result<Json<Table>, String> {
     let table_name = payload.name;
 
-    if state.get(table_name.clone()).await.is_some() {
+    if state.get(&table_name).await.is_some() {
         return Err(format!("Table '{}' already exists", table_name));
     }
 
@@ -99,7 +97,7 @@ async fn drop_table(
 ) -> Result<Json<String>, String> {
     let table_name = payload.name;
 
-    if state.drop_table(table_name.clone()).await {
+    if state.drop_table(&table_name).await {
         info!("Dropped table: {}", table_name);
         Ok(Json(format!("Dropped table '{}'", table_name)))
     } else {
@@ -114,9 +112,9 @@ async fn update_table(
     let current_name = payload.current_name;
     let new_name = payload.new_name;
 
-    if let Some(mut table) = state.get(current_name.clone()).await {
+    if let Some(mut table) = state.get(&current_name).await {
         table.name = new_name.clone();
-        state.drop_table(current_name.clone()).await;
+        state.drop_table(&current_name).await;
         state.create(table).await;
         info!("Updated table name from '{}' to '{}'", current_name, new_name);
         Ok(Json(format!("Updated table name from '{}' to '{}'", current_name, new_name)))
@@ -131,7 +129,7 @@ async fn insert_column(
 ) -> Result<Json<Column>, String> {
     let table_name = payload.table_name;
 
-    if let Some(mut table) = state.get(table_name.clone()).await {
+    if let Some(mut table) = state.get(&table_name).await {
         let column = Column::new(
             payload.key,
             payload.primary_key,
@@ -140,7 +138,7 @@ async fn insert_column(
             payload.foreign_key.map(|fk| fk.into_iter().map(Box::new).collect()),
         );
         table.add_column(column.clone());
-        state.drop_table(table_name.clone()).await;
+        state.drop_table(&table_name).await;
         state.create(table).await;
         info!("Inserted column into table '{}': {:?}", table_name, column);
         Ok(Json(column))
@@ -155,7 +153,7 @@ async fn insert_row(
 ) -> Result<Json<Vec<String>>, String> {
     let table_name = payload.table_name;
 
-    if let Some(mut table) = state.get(table_name.clone()).await {
+    if let Some(mut table) = state.get(&table_name).await {
         let row = payload.row;
 
         let columns_len = table.columns.len();
@@ -164,7 +162,7 @@ async fn insert_row(
         }
 
         table.add_row(row.clone());
-        state.drop_table(table_name.clone()).await;
+        state.drop_table(&table_name).await;
         state.create(table).await;
         info!("Inserted row into table '{}': {:?}", table_name, row);
         Ok(Json(row.values.into_iter().map(|cell| cell.value).collect()))
@@ -192,15 +190,15 @@ impl AppState {
 
     pub async fn get_all(&self) -> Vec<Table> {
         let lock = self.tables.read().await;
-        lock.iter().map(|table| table.clone()).collect()
+        lock.iter().cloned().collect()
     }
 
-    pub async fn get(&self, table_name: String) -> Option<Table> {
+    pub async fn get(&self, table_name: &str) -> Option<Table> {
         let lock = self.tables.read().await;
         lock.iter().find(|table| table.name == table_name).cloned()
     }
 
-    pub async fn drop_table(&self, table_name: String) -> bool {
+    pub async fn drop_table(&self, table_name: &str) -> bool {
         let mut lock = self.tables.write().await;
         if let Some(index) = lock.iter().position(|table| table.name == table_name) {
             lock.remove(index);
