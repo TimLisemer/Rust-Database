@@ -2,7 +2,9 @@
 
 use reqwest::{Client, Response};
 use serde_json::json;
-use core::request_types::{CreateTableRequest, DropTableRequest, UpdateTableRequest, InsertColumnRequest};
+use core::request_types::{CreateTableRequest, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest};
+use core::row::Row;
+use core::value::Value;
 
 #[tokio::main]
 async fn main() {
@@ -19,11 +21,15 @@ async fn main() {
     insert_column(&client, &InsertColumnRequest {
         table_name: "test table".to_string(),
         key: "test key".to_string(),
-        value: "test value".to_string(),
         primary_key: true,
         non_null: true,
         unique: true,
         foreign_key: None,
+    }).await.unwrap();
+
+    insert_row(&client, &InsertRowRequest {
+        table_name: "test table".to_string(),
+        row: Row::new(vec![Value::new("test value".to_string()), Value::new("test value2".to_string())]),
     }).await.unwrap();
 }
 
@@ -75,5 +81,17 @@ async fn insert_column(client: &Client, insert_column_request: &InsertColumnRequ
         .await?;
 
     println!("Insert Column Response: {:?}", resp);
+    Ok(resp)
+}
+
+async fn insert_row(client: &Client, insert_row_request: &InsertRowRequest) -> Result<Response, reqwest::Error> {
+    let url = format!("http://localhost:3000/insert_row");
+
+    let resp = client.post(&url)
+        .json(insert_row_request)
+        .send()
+        .await?;
+
+    println!("Insert Row Response: {:?}", resp);
     Ok(resp)
 }

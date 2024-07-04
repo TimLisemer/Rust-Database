@@ -1,15 +1,14 @@
 use axum::{
     routing::{get, post},
-    Router, Json, extract::{State, Path},
+    Router, Json, extract::{State},
 };
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use tokio::{signal::ctrl_c, spawn};
 use log::{error, info, LevelFilter};
 use tokio::sync::RwLock;
-use serde::Deserialize;
 use core::table::Table;
 use core::column::Column;
-use core::request_types::{CreateTableRequest, DropTableRequest, UpdateTableRequest, InsertColumnRequest};
+use core::request_types::{CreateTableRequest, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest};
 
 #[tokio::main]
 async fn main() {
@@ -27,6 +26,7 @@ async fn main() {
         .route("/drop_table", post(drop_table))
         .route("/update_table", post(update_table))
         .route("/insert_column", post(insert_column))
+        .route("/insert_row", post(insert_row))
         .with_state(app_state); // Clone app_state for the server task
 
     let address = "0.0.0.0:3000";
@@ -84,6 +84,7 @@ async fn create_table(
     let new_table = Table {
         name: table_name.clone(),
         columns: Vec::new(),
+        rows: Vec::new(),
     };
 
     state.create(new_table.clone()).await;
@@ -133,7 +134,6 @@ async fn insert_column(
     if let Some(mut table) = state.get(table_name.clone()).await {
         let column = Column::new(
             payload.key,
-            payload.value,
             payload.primary_key,
             payload.non_null,
             payload.unique,
@@ -144,6 +144,30 @@ async fn insert_column(
         state.create(table).await;
         info!("Inserted column into table '{}': {:?}", table_name, column);
         Ok(Json(column))
+    } else {
+        Err(format!("Table '{}' does not exist", table_name))
+    }
+}
+
+async fn insert_row(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<InsertRowRequest>
+) -> Result<Json<Vec<String>>, String> {
+    let table_name = payload.table_name;
+
+    if let Some(mut table) = state.get(table_name.clone()).await {
+        let row = payload.row;
+
+        let columns_len = table.columns.len();
+        if row.values.len() > columns_len {
+            return Err(format!("Row has too many values ({}), expected {}", row.values.len(), columns_len));
+        }
+
+        table.add_row(row.clone());
+        state.drop_table(table_name.clone()).await;
+        state.create(table).await;
+        info!("Inserted row into table '{}': {:?}", table_name, row);
+        Ok(Json(row.values.into_iter().map(|cell| cell.value).collect()))
     } else {
         Err(format!("Table '{}' does not exist", table_name))
     }
