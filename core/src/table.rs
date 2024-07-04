@@ -24,7 +24,7 @@ impl Table {
         self.entries.iter().find(|entry| entry.key == key)
     }
 
-    pub fn get_value_from_key(&self, key: &str) -> Option<&Vec<String>> {
+    pub fn get_value_from_key(&self, key: &str) -> Option<&String> {
         self.entries.iter().find(|entry| entry.key == key).map(|entry| &entry.value)
     }
 }

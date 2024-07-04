@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Entry {
     pub key: String,
-    pub value: Vec<String>,
+    pub value: String,
     pub primary_key: bool,
     pub non_null: bool,
     pub unique: bool,
@@ -13,7 +13,7 @@ pub struct Entry {
 impl Entry {
     pub fn new(
         key: String,
-        value: Vec<String>,
+        value: String,
         primary_key: bool,
         non_null: bool,
         unique: bool,

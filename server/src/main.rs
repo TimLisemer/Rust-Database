@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use tokio::{signal::ctrl_c, spawn};
 use log::{error, info, LevelFilter};
 use core::table::Table;
+use core::entry::Entry;
 
 #[tokio::main]
 async fn main() {
@@ -11,13 +12,20 @@ async fn main() {
         .format_timestamp_millis()
         .init();
 
+    // Create tables and populate them
+    let table1 = create_table_users();
+    let table2 = create_table_products();
+
     let app_state = AppState {
-        table: Arc::new(Mutex::new(Table::new("Users".to_string()))),
+        tables: vec![
+            Arc::new(Mutex::new(table1)),
+            Arc::new(Mutex::new(table2)),
+        ],
     };
 
     let app = Router::new()
         .route("/", get(root))
-        .route("/table", get(get_table))
+        .route("/tables", get(get_tables))
         .with_state(app_state.clone()); // Clone app_state for the server task
 
     let address = "0.0.0.0:3000";
@@ -38,8 +46,8 @@ async fn main() {
         }
     });
 
-    // Handle Ctrl+C (SIGINT) to gracefully shutdown the server
-    let _ = tokio::spawn(async {
+    // Handle Ctrl+C (SIGINT) to gracefully shut down the server
+    let _ = spawn(async {
         ctrl_c().await.expect("Failed to listen for Ctrl+C");
     }).await;
 
@@ -49,16 +57,46 @@ async fn main() {
     }
 }
 
+fn create_table_users() -> Table {
+    let mut table = Table::new("Users".to_string());
+
+    let entry1 = Entry::new("id".to_string(), "1".to_string(), true, true, true, None);
+    let entry2 = Entry::new("name".to_string(), "Alice".to_string(), false, true, false, None);
+    let entry3 = Entry::new("email".to_string(), "alice@example.com".to_string(), false, true, true, None);
+
+    table.add_entry(entry1);
+    table.add_entry(entry2);
+    table.add_entry(entry3);
+
+    table
+}
+
+fn create_table_products() -> Table {
+    let mut table = Table::new("Products".to_string());
+
+    let entry4 = Entry::new("id".to_string(), "2".to_string(), true, true, true, None);
+
+    table.add_entry(entry4);
+
+    table
+}
+
 async fn root() -> &'static str {
     "Hello, world!"
 }
 
-async fn get_table(State(state): State<AppState>) -> Json<Table> {
-    let table = state.table.lock().unwrap();
-    Json(table.clone())
+async fn get_tables(State(state): State<AppState>) -> Json<Vec<Table>> {
+    let tables = state.tables.iter()
+        .map(|table| {
+            let table = table.lock().unwrap();
+            table.clone()
+        })
+        .collect();
+
+    Json(tables)
 }
 
 #[derive(Clone)]
 struct AppState {
-    table: Arc<Mutex<Table>>,
+    tables: Vec<Arc<Mutex<Table>>>,
 }
