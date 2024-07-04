@@ -15,3 +15,7 @@ If you want to __remove__ the server container, use the appropriate command base
 $ docker-compose rm -s -f
 $ podman-compose down -v --remove-orphans
 ```
+
+```
+podman-compose up --build --force-recreate
+```

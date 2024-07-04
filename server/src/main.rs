@@ -1,116 +1,64 @@
-use std::thread::sleep;
-use std::time::Duration;
-use serde::{Deserialize, Serialize};
+use axum::{routing::get, Router, Json, extract::State};
+use std::sync::{Arc, Mutex};
+use tokio::{signal::ctrl_c, spawn};
+use log::{error, info, LevelFilter};
+use core::table::Table;
 
-#[derive(Serialize, Deserialize)]
-struct Table {
-    name: String,
-    entries: Vec<Entry>,
-}
+#[tokio::main]
+async fn main() {
+    env_logger::builder()
+        .filter_level(LevelFilter::Info)
+        .format_timestamp_millis()
+        .init();
 
-impl Table {
-    pub fn new(name: String) -> Self {
-        Table {
-            name,
-            entries: Vec::new(),
+    let app_state = AppState {
+        table: Arc::new(Mutex::new(Table::new("Users".to_string()))),
+    };
+
+    let app = Router::new()
+        .route("/", get(root))
+        .route("/table", get(get_table))
+        .with_state(app_state.clone()); // Clone app_state for the server task
+
+    let address = "0.0.0.0:3000";
+    let listener = match tokio::net::TcpListener::bind(address).await {
+        Ok(listener) => {
+            info!("Http service started running on http://{}", address);
+            listener
         }
-    }
-
-    pub fn add_entry(&mut self, entry: Entry) {
-        self.entries.push(entry);
-    }
-
-    pub fn get_entry_from_key(&self, key: &str) -> Option<&Entry> {
-        self.entries.iter().find(|entry| entry.key == key)
-    }
-
-    pub fn get_value_from_key(&self, key: &str) -> Option<&Vec<String>> {
-        self.entries.iter().find(|entry| entry.key == key).map(|entry| &entry.value)
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct Entry {
-    key: String,
-    value: Vec<String>,
-    primary_key: bool,
-    non_null: bool,
-    unique: bool,
-    foreign_key: Option<Vec<Box<Entry>>>,
-}
-
-impl Entry {
-    pub fn new(
-        key: String,
-        value: Vec<String>,
-        primary_key: bool,
-        non_null: bool,
-        unique: bool,
-        foreign_key: Option<Vec<Box<Entry>>>,
-    ) -> Self {
-        if primary_key && (non_null == false || value.is_empty()) {
-            panic!("Primary Key cannot be null or empty!");
+        Err(err) => {
+            error!("Error: {}", err);
+            return;
         }
+    };
 
-        if primary_key && !unique {
-            panic!("Primary Key has to be unique!");
+    let server_task = spawn(async move {
+        if let Err(err) = axum::serve(listener, app).await {
+            error!("Server error: {}", err);
         }
+    });
 
-        Self {
-            key,
-            value,
-            primary_key,
-            non_null,
-            unique,
-            foreign_key,
-        }
+    // Handle Ctrl+C (SIGINT) to gracefully shutdown the server
+    let _ = tokio::spawn(async {
+        ctrl_c().await.expect("Failed to listen for Ctrl+C");
+    }).await;
+
+    // Wait for server task to finish (though it should run indefinitely until SIGINT)
+    if let Err(err) = server_task.await {
+        error!("Server task error: {}", err);
     }
 }
 
-fn main() {
-    // Create a new table
-    let mut table = Table::new("Users".to_string());
+async fn root() -> &'static str {
+    "Hello, world!"
+}
 
-    // Create entries
-    let entry1 = Entry::new(
-        "id".to_string(),
-        vec!["1".to_string()],
-        true,
-        true,
-        true,
-        None,
-    );
+async fn get_table(State(state): State<AppState>) -> Json<Table> {
+    let table = state.table.lock().unwrap();
+    Json(table.clone())
+}
 
-    let entry2 = Entry::new(
-        "name".to_string(),
-        vec!["Alice".to_string()],
-        false,
-        true,
-        false,
-        None,
-    );
-
-    let entry3 = Entry::new(
-        "email".to_string(),
-        vec!["alice@example.com".to_string()],
-        false,
-        true,
-        true,
-        None,
-    );
-
-    // Add entries to the table
-    table.add_entry(entry1);
-    table.add_entry(entry2);
-    table.add_entry(entry3);
-
-    // Convert table to JSON string
-    let table_json = serde_json::to_string(&table).unwrap();
-
-    // Pause for a while
-    loop {
-        println!("This is a database management engine. Maybe it is an HTTP server? Or a Linux systemd service? Who knows?");
-        println!("Test Table: {}", table_json);
-        sleep(Duration::from_secs(5));
-    }
+#[derive(Clone)]
+struct AppState {
+    table: Arc<Mutex<Table>>,
 }

@@ -20,7 +20,7 @@ WORKDIR /usr/src/server
 COPY --from=builder /usr/src/server/target/release/server .
 
 # Expose any necessary ports
-EXPOSE 8080
+EXPOSE 3000
 
 # Command to run the application
 CMD ["./server"]
