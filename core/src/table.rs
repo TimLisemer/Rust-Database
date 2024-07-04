@@ -2,7 +2,7 @@ use crate::entry::Entry;
 use serde::{Deserialize, Serialize};
 
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Table {
     pub name: String,
     pub entries: Vec<Entry>,
