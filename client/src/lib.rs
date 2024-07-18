@@ -1,8 +1,6 @@
-// src/lib.rs
-
 //! # Client Crate
 //!
-//! This crate provides a client to interact with a server that manages tables and their data. It allows for creating, dropping, updating tables, and inserting columns and rows.
+//! This crate provides a client to interact with a server that manages tables and their data. It allows for creating, dropping, updating tables, inserting columns and rows, and selecting data from tables.
 //!
 //! ## Overview
 //!
@@ -13,6 +11,7 @@
 //! - Updating table names
 //! - Inserting columns into tables
 //! - Inserting rows into tables
+//! - Selecting data from tables
 //!
 //! ## Usage
 //!
@@ -22,8 +21,8 @@
 //!
 //! ```rust,no_run
 //! use reqwest::Client;
-//! use client::{create, create_table, drop_table, insert_column, insert_row, update_table};
-//! use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest};
+//! use client::{create, create_table, drop_table, insert_column, insert_row, update_table, select};
+//! use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest};
 //! use core::row::Row;
 //! use core::value::Value;
 //!
@@ -56,14 +55,25 @@
 //!     };
 //!
 //!     insert_row(&client, &insert_row_request).await.unwrap();
+//!
+//!     let select_request = SelectRequest {
+//!         table_name: "test table".to_string(),
+//!         columns: Some(vec!["test key".to_string(), "test key2".to_string()]),
+//!         condition: None,
+//!     };
+//!
+//!     let select_response = select(&client, &select_request).await.unwrap();
+//!     let select_result = select_response.text().await.unwrap();
+//!     println!("Select result from 'test table': {}", select_result);
 //! }
 //! ```
-//!
+
+
 
 pub mod functions;
 
 pub use crate::functions::{
-    create, create_table, drop_table, update_table, insert_column, insert_row,
+    create, create_table, drop_table, update_table, insert_column, insert_row, select
 };
 
 

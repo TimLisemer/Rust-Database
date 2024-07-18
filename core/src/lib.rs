@@ -6,7 +6,7 @@
 //!
 //! - [`table`](table): Defines the `Table` structure representing a database table.
 //! - [`column`](crate::column): Defines the `Column` structure representing a column in a table.
-//! - [`request_types`](crate::request_types): Defines various request types used in interacting with tables.
+//! - [`request_types`](request_types): Defines various request types used in interacting with tables.
 //! - [`value`](value): Defines the `Value` structure representing a value in a table.
 //! - [`row`](row): Defines the `Row` structure representing a row in a table.
 //!
