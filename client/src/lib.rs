@@ -30,17 +30,17 @@
 //! async fn main() {
 //!     let client = Client::new();
 //!
-//!     create(&client, &CreateRequests { name: "test table".to_string() }).await.unwrap();
+//!     create(&client, &CreateRequests { name: "test_table".to_string() }).await.unwrap();
 //!
-//!     drop_table(&client, &DropTableRequest { name: "test table".to_string() }).await.unwrap();
+//!     drop_table(&client, &DropTableRequest { name: "test_table".to_string() }).await.unwrap();
 //!
-//!     create(&client, &CreateRequests { name: "test table again".to_string() }).await.unwrap();
+//!     create(&client, &CreateRequests { name: "test_table again".to_string() }).await.unwrap();
 //!
-//!     update_table(&client, &UpdateTableRequest { current_name: "test table again".to_string(), new_name: "test table".to_string() }).await.unwrap();
+//!     update_table(&client, &UpdateTableRequest { current_name: "test_table again".to_string(), new_name: "test_table".to_string() }).await.unwrap();
 //!
 //!     let insert_column_request = InsertColumnRequest {
-//!         table_name: "test table".to_string(),
-//!         key: "test key".to_string(),
+//!         table_name: "test_table".to_string(),
+//!         key: "test_key".to_string(),
 //!         primary_key: true,
 //!         non_null: true,
 //!         unique: true,
@@ -50,21 +50,21 @@
 //!     insert_column(&client, &insert_column_request).await.unwrap();
 //!
 //!     let insert_row_request = InsertRowRequest {
-//!         table_name: "test table".to_string(),
-//!         row: Row::new(vec![Value::new("test value".to_string()), Value::new("test value2".to_string())]),
+//!         table_name: "test_table".to_string(),
+//!         row: Row::new(vec![Value::new("test_value".to_string()), Value::new("test_value2".to_string())]),
 //!     };
 //!
 //!     insert_row(&client, &insert_row_request).await.unwrap();
 //!
 //!     let select_request = SelectRequest {
-//!         table_name: "test table".to_string(),
-//!         columns: Some(vec!["test key".to_string(), "test key2".to_string()]),
+//!         table_name: "test_table".to_string(),
+//!         columns: Some(vec!["test_key".to_string(), "test_key2".to_string()]),
 //!         condition: None,
 //!     };
 //!
 //!     let select_response = select(&client, &select_request).await.unwrap();
 //!     let select_result = select_response.text().await.unwrap();
-//!     println!("Select result from 'test table': {}", select_result);
+//!     println!("Select result from 'test_table': {}", select_result);
 //! }
 //! ```
 

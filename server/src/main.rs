@@ -161,7 +161,7 @@ async fn get_tables(State(state): State<Arc<AppState>>) -> Json<Vec<Table>> {
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/create -H '{"name":"test table"}'
+/// curl -X POST http://localhost:3000/create -H '{"name":"test_table"}'
 /// ```
 async fn create(
     State(state): State<Arc<AppState>>,
@@ -191,7 +191,7 @@ async fn create(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/drop_table -H '{"name":"test table"}'
+/// curl -X POST http://localhost:3000/drop_table -H '{"name":"test_table"}'
 /// ```
 async fn drop_table(
     State(state): State<Arc<AppState>>,
@@ -213,7 +213,7 @@ async fn drop_table(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/update_table -H '{"current_name":"test table again","new_name":"test table"}'
+/// curl -X POST http://localhost:3000/update_table -H '{"current_name":"test_table again","new_name":"test_table"}'
 /// ```
 async fn update_table(
     State(state): State<Arc<AppState>>,
@@ -239,7 +239,7 @@ async fn update_table(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/insert_column -H '{"table_name":"test table","key":"test key","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
+/// curl -X POST http://localhost:3000/insert_column -H '{"table_name":"test_table","key":"test_key","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
 /// ```
 async fn insert_column(
     State(state): State<Arc<AppState>>,
@@ -271,7 +271,7 @@ async fn insert_column(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/create_table -H '{"name":"test create table", "insert_column_requests":[{"table_name":"test create table", "key":"test create key", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null},{"table_name":"test create table", "key":"test create key2", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null}]}'
+/// curl -X POST http://localhost:3000/create_table -H '{"name":"test_create_table", "insert_column_requests":[{"table_name":"test_create_table", "key":"test_create_key", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null},{"table_name":"test_create_table", "key":"test_create_key2", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null}]}'
 /// ```
 async fn create_table(
     State(state): State<Arc<AppState>>,
@@ -312,7 +312,7 @@ async fn create_table(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/insert_row -H '{"table_name":"test table","row":["test value","test value2"]}'
+/// curl -X POST http://localhost:3000/insert_row -H '{"table_name":"test_table","row":["test_value","test_value2"]}'
 /// ```
 async fn insert_row(
     State(state): State<Arc<AppState>>,
@@ -344,7 +344,7 @@ async fn insert_row(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/select -H '{"table_name":"test table", "columns":["column1", "column2"], "condition":{"column":"column1", "value":"some_value"}}'
+/// curl -X POST http://localhost:3000/select -H '{"table_name":"test_table", "columns":["column1", "column2"], "condition":{"column":"column1", "value":"some_value"}}'
 /// ```
 ///
 /// Retrieves rows from the specified table (`table_name`) optionally filtered by columns (`columns`) and a conditional (`condition`).
