@@ -4,11 +4,11 @@
 //!
 //! ## Modules
 //!
-//! - [`table`](crate::table): Defines the `Table` structure representing a database table.
+//! - [`table`](table): Defines the `Table` structure representing a database table.
 //! - [`column`](crate::column): Defines the `Column` structure representing a column in a table.
 //! - [`request_types`](crate::request_types): Defines various request types used in interacting with tables.
-//! - [`value`](crate::value): Defines the `Value` structure representing a value in a table.
-//! - [`row`](crate::row): Defines the `Row` structure representing a row in a table.
+//! - [`value`](value): Defines the `Value` structure representing a value in a table.
+//! - [`row`](row): Defines the `Row` structure representing a row in a table.
 //!
 //! Each module encapsulates related functionality and data structures essential for database operations.
 //!
