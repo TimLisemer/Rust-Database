@@ -8,3 +8,6 @@ reqwest = { version = "0.12.5", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 serde_json = "1.0.120"
 core = { path = "../core" }
+
+[features]
+doc_examples = []

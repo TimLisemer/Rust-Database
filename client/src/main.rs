@@ -1,11 +1,39 @@
-// Client code
-
-use reqwest::{Client, Response};
-use serde_json::json;
+use client::functions::*;
+use reqwest::Client;
 use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest};
 use core::row::Row;
 use core::value::Value;
 
+/// This main function demonstrates the usage of various client functions with example values.
+///
+/// # Examples
+///
+/// ```sh
+/// # Create a table
+/// curl -X POST http://localhost:3000/create -d '{"name":"test table"}'
+///
+/// # Drop the table
+/// curl -X POST http://localhost:3000/drop_table -d '{"name":"test table"}'
+///
+/// # Create another table
+/// curl -X POST http://localhost:3000/create -d '{"name":"test table again"}'
+///
+/// # Update the table name
+/// curl -X POST http://localhost:3000/update_table -d '{"current_name":"test table again","new_name":"test table"}'
+///
+/// # Insert columns
+/// curl -X POST http://localhost:3000/insert_column -d '{"table_name":"test table","key":"test key","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
+/// curl -X POST http://localhost:3000/insert_column -d '{"table_name":"test table","key":"test key2","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
+///
+/// # Insert a row
+/// curl -X POST http://localhost:3000/insert_row -d '{"table_name":"test table","row":["test value","test value2"]}'
+///
+/// # Create a table with columns
+/// curl -X POST http://localhost:3000/create_table -d '{"name":"test create table", "insert_column_requests":[{"table_name":"test create table", "key":"test create key", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null},{"table_name":"test create table", "key":"test create key2", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null}]}'
+///
+/// # Insert a row into the newly created table
+/// curl -X POST http://localhost:3000/insert_row -d '{"table_name":"test create table","row":["test create value","test create value2"]}'
+/// ```
 #[tokio::main]
 async fn main() {
     let client = Client::new();
@@ -35,8 +63,6 @@ async fn main() {
         unique: true,
         foreign_key: None,
     };
-
-
 
     insert_column(&client, &insert_column_request).await.unwrap();
     insert_column(&client, &insert_column_request2).await.unwrap();
@@ -77,79 +103,4 @@ async fn main() {
     };
 
     insert_row(&client, &insert_row_request2).await.unwrap();
-}
-
-async fn create(client: &Client, create_table_request: &CreateRequests) -> Result<Response, reqwest::Error> {
-    let url = format!("http://localhost:3000/create");
-    let body = json!({
-        "name": create_table_request.name,
-    });
-
-    let resp = client.post(&url)
-        .json(&body)
-        .send()
-        .await?;
-
-    println!("Create Table Response: {:?}", resp);
-    Ok(resp)
-}
-
-async fn create_table(client: &Client, create_table_request: &CreateTableRequests) -> Result<Response, reqwest::Error> {
-    let url = format!("http://localhost:3000/create_table");
-
-    let resp = client.post(&url)
-        .json(create_table_request)
-        .send()
-        .await?;
-
-    println!("Create Table Response: {:?}", resp);
-    Ok(resp)
-}
-
-async fn drop_table(client: &Client, drop_table_request: &DropTableRequest) -> Result<Response, reqwest::Error> {
-    let url = format!("http://localhost:3000/drop_table");
-
-    let resp = client.post(&url)
-        .json(drop_table_request)
-        .send()
-        .await?;
-
-    println!("Update Table Response: {:?}", resp);
-    Ok(resp)
-}
-
-async fn update_table(client: &Client, update_table_request: &UpdateTableRequest) -> Result<Response, reqwest::Error> {
-    let url = format!("http://localhost:3000/update_table");
-
-    let resp = client.post(&url)
-        .json(update_table_request)
-        .send()
-        .await?;
-
-    println!("Update Table Response: {:?}", resp);
-    Ok(resp)
-}
-
-async fn insert_column(client: &Client, insert_column_request: &InsertColumnRequest) -> Result<Response, reqwest::Error> {
-    let url = format!("http://localhost:3000/insert_column");
-
-    let resp = client.post(&url)
-        .json(insert_column_request)
-        .send()
-        .await?;
-
-    println!("Insert Column Response: {:?}", resp);
-    Ok(resp)
-}
-
-async fn insert_row(client: &Client, insert_row_request: &InsertRowRequest) -> Result<Response, reqwest::Error> {
-    let url = format!("http://localhost:3000/insert_row");
-
-    let resp = client.post(&url)
-        .json(insert_row_request)
-        .send()
-        .await?;
-
-    println!("Insert Row Response: {:?}", resp);
-    Ok(resp)
 }
