@@ -4,6 +4,7 @@ use axum::{
     Router, Json, extract::State,
 };
 use std::sync::Arc;
+use axum::response::{Html, IntoResponse};
 use tokio::{signal::ctrl_c, spawn};
 use log::{error, info, LevelFilter};
 use tokio::sync::RwLock;
@@ -78,8 +79,72 @@ async fn main() {
 }
 
 /// Handler for root endpoint
-async fn root() -> &'static str {
-    "Hello, world!"
+async fn root(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let tables = state.get_all().await;
+    Html(format_tables_html(tables))
+}
+
+/// Format tables data into HTML
+fn format_tables_html(tables: Vec<Table>) -> String {
+    let mut html = String::new();
+
+    html.push_str(r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Database Tables</title>
+            <style>
+                body { font-family: Arial, sans-serif; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+                th { background-color: #f2f2f2; }
+            </style>
+        </head>
+        <body>
+            <h1>Database Tables</h1>
+    "#);
+
+    for table in tables {
+        html.push_str(&format!(r#"
+            <h2>{}</h2>
+            <table>
+                <tr><th>Column Name</th><th>Primary Key</th><th>Non Null</th><th>Unique</th></tr>
+        "#, table.name));
+
+        for column in table.columns {
+            html.push_str(&format!(r#"
+                <tr>
+                    <td>{}</td>
+                    <td>{}</td>
+                    <td>{}</td>
+                    <td>{}</td>
+                </tr>
+            "#, column.key, column.primary_key, column.non_null, column.unique));
+        }
+
+        html.push_str(r#"
+            </table>
+            <h3>Rows</h3>
+            <table>
+                <tr><th>Row Values</th></tr>
+        "#);
+
+        for row in table.rows {
+            let row_values: Vec<String> = row.values.into_iter().map(|value| value.value).collect();
+            html.push_str(&format!(r#"
+                <tr><td>{}</td></tr>
+            "#, row_values.join(", ")));
+        }
+
+        html.push_str("</table>");
+    }
+
+    html.push_str(r#"
+            </body>
+        </html>
+    "#);
+
+    html
 }
 
 /// Handler to get all tables
