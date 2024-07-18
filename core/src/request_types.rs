@@ -59,3 +59,16 @@ pub struct InsertRowRequest {
     pub table_name: String,
     pub row: Row,
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct SelectRequest {
+    pub columns: Option<Vec<String>>,  // None means SELECT *
+    pub table_name: String,
+    pub condition: Option<Condition>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct Condition {
+    pub column: String,
+    pub value: String,
+}

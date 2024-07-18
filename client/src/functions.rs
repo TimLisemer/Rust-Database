@@ -2,7 +2,7 @@
 
 use reqwest::{Client, Response};
 use serde_json::json;
-use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest};
+use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest};
 
 /// Creates a new table on the server.
 ///
@@ -237,5 +237,44 @@ pub async fn insert_row(client: &Client, insert_row_request: &InsertRowRequest) 
         .await?;
 
     println!("Insert Row Response: {:?}", resp);
+    Ok(resp)
+}
+
+
+/// Sends a select query to the server.
+///
+/// # Arguments
+///
+/// * `client` - A reference to the HTTP client.
+/// * `select_request` - The request object containing the select query details.
+///
+/// # Examples
+///
+/// ```
+/// # #[cfg(feature = "doc_examples")] {
+/// # use reqwest::Client;
+/// # use core::request_types::{SelectRequest, Condition};
+/// # async fn example(client: &Client, select_request: &SelectRequest) -> Result<(), reqwest::Error> {
+/// let url = format!("http://localhost:3000/select");
+///
+/// let resp = client.post(&url)
+///     .json(select_request)
+///     .send()
+///     .await?;
+///
+/// println!("Select Response: {:?}", resp);
+/// # Ok(())
+/// # }
+/// # }
+/// ```
+pub async fn select(client: &Client, select_request: &SelectRequest) -> Result<Response, reqwest::Error> {
+    let url = format!("http://localhost:3000/select");
+
+    let resp = client.post(&url)
+        .json(select_request)
+        .send()
+        .await?;
+
+    println!("Select Response: {:?}", resp);
     Ok(resp)
 }

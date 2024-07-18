@@ -15,7 +15,7 @@ use core::{
     column::Column,
     request_types::{
         CreateRequests, CreateTableRequests, DropTableRequest,
-        UpdateTableRequest, InsertColumnRequest, InsertRowRequest,
+        UpdateTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest
     },
 };
 
@@ -40,6 +40,7 @@ async fn main() {
         .route("/update_table", post(update_table))
         .route("/insert_column", post(insert_column))
         .route("/insert_row", post(insert_row))
+        .route("/select", post(select))
         .with_state(app_state.clone());
 
     // Start HTTP server
@@ -160,7 +161,7 @@ async fn get_tables(State(state): State<Arc<AppState>>) -> Json<Vec<Table>> {
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/create -d '{"name":"test table"}'
+/// curl -X POST http://localhost:3000/create -H '{"name":"test table"}'
 /// ```
 async fn create(
     State(state): State<Arc<AppState>>,
@@ -190,7 +191,7 @@ async fn create(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/drop_table -d '{"name":"test table"}'
+/// curl -X POST http://localhost:3000/drop_table -H '{"name":"test table"}'
 /// ```
 async fn drop_table(
     State(state): State<Arc<AppState>>,
@@ -212,7 +213,7 @@ async fn drop_table(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/update_table -d '{"current_name":"test table again","new_name":"test table"}'
+/// curl -X POST http://localhost:3000/update_table -H '{"current_name":"test table again","new_name":"test table"}'
 /// ```
 async fn update_table(
     State(state): State<Arc<AppState>>,
@@ -238,7 +239,7 @@ async fn update_table(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/insert_column -d '{"table_name":"test table","key":"test key","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
+/// curl -X POST http://localhost:3000/insert_column -H '{"table_name":"test table","key":"test key","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
 /// ```
 async fn insert_column(
     State(state): State<Arc<AppState>>,
@@ -270,7 +271,7 @@ async fn insert_column(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/create_table -d '{"name":"test create table", "insert_column_requests":[{"table_name":"test create table", "key":"test create key", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null},{"table_name":"test create table", "key":"test create key2", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null}]}'
+/// curl -X POST http://localhost:3000/create_table -H '{"name":"test create table", "insert_column_requests":[{"table_name":"test create table", "key":"test create key", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null},{"table_name":"test create table", "key":"test create key2", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null}]}'
 /// ```
 async fn create_table(
     State(state): State<Arc<AppState>>,
@@ -311,7 +312,7 @@ async fn create_table(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/insert_row -d '{"table_name":"test table","row":["test value","test value2"]}'
+/// curl -X POST http://localhost:3000/insert_row -H '{"table_name":"test table","row":["test value","test value2"]}'
 /// ```
 async fn insert_row(
     State(state): State<Arc<AppState>>,
@@ -335,6 +336,72 @@ async fn insert_row(
         Ok(Json(row.values.into_iter().map(|cell| cell.value).collect()))
     } else {
         Err(format!("Table '{}' does not exist", table_name))
+    }
+}
+
+/// Handler to select rows from a table based on specified conditions or retrieve all rows if no conditions are provided.
+///
+/// # Example
+///
+/// ```
+/// curl -X POST http://localhost:3000/select -H '{"table_name":"test table", "columns":["column1", "column2"], "condition":{"column":"column1", "value":"some_value"}}'
+/// ```
+///
+/// Retrieves rows from the specified table (`table_name`) optionally filtered by columns (`columns`) and a conditional (`condition`).
+/// If `columns` is not provided, all columns are selected (`SELECT *`).
+///
+/// ## Parameters
+///
+/// - `table_name`: Name of the table from which rows are selected.
+/// - `columns`: Optional. List of columns to select. If not provided, all columns are selected.
+/// - `condition`: Optional. Specifies a condition to filter rows. Only rows matching this condition are returned.
+///
+/// ## Returns
+///
+/// Returns a JSON array of rows, where each row is represented as an array of strings (values of selected columns).
+///
+/// ## Errors
+///
+/// - Returns an error if the specified `table_name` does not exist in the application state.
+/// - Returns an error if the specified `condition.column` does not exist in the table.
+///
+/// ## Notes
+///
+/// - This handler supports flexible column selection and row filtering based on conditions.
+///
+async fn select(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<SelectRequest>
+) -> Result<Json<Vec<Vec<String>>>, String> {
+    if let Some(table) = state.get(&payload.table_name).await {
+        let selected_columns = match &payload.columns {
+            Some(cols) => cols.clone(),
+            None => table.columns.iter().map(|col| col.key.clone()).collect(), // SELECT *
+        };
+
+        let mut rows = vec![];
+
+        for row in &table.rows {
+            if let Some(cond) = &payload.condition {
+                if let Some(col_index) = table.columns.iter().position(|col| col.key == cond.column) {
+                    if row.values[col_index].value != cond.value {
+                        continue;
+                    }
+                } else {
+                    return Err(format!("Column '{}' not found", cond.column));
+                }
+            }
+
+            let selected_values = selected_columns.iter().filter_map(|col_key| {
+                table.columns.iter().position(|col| col.key.eq(col_key)).map(|index| row.values[index].value.clone())
+            }).collect::<Vec<String>>();
+
+            rows.push(selected_values);
+        }
+
+        Ok(Json(rows))
+    } else {
+        Err(format!("Table '{}' does not exist", payload.table_name))
     }
 }
 
