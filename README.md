@@ -1,4 +1,4 @@
- Rust Database
+ # Rust Database
 
  Rust Database is a Rust-based project designed to emulate a MySQL-like database system. It includes:
 
