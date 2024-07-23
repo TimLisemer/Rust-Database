@@ -7,7 +7,7 @@ use std::sync::Arc;
 use axum::response::{Html, IntoResponse};
 use tokio::{signal::ctrl_c, spawn};
 use log::{error, info, LevelFilter};
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt, BufReader};
 use core::{
@@ -41,7 +41,7 @@ async fn main() {
         .route("/insert_column", post(insert_column))
         .route("/insert_row", post(insert_row))
         .route("/select", post(select))
-        .with_state(app_state.clone());
+        .with_state(Arc::clone(&app_state));
 
     // Start HTTP server
     let address = "0.0.0.0:3000";
@@ -64,7 +64,7 @@ async fn main() {
 
     // Handle Ctrl+C (SIGINT) to gracefully shut down the server
     let _ = spawn({
-        let app_state = app_state.clone();
+        let app_state = Arc::clone(&app_state);
         async move {
             ctrl_c().await.expect("Failed to listen for Ctrl+C");
             if let Err(err) = app_state.save().await {
@@ -174,7 +174,7 @@ async fn create(
     }
 
     let new_table = Table {
-        name: table_name.clone(),
+        name: table_name,
         columns: Vec::new(),
         rows: Vec::new(),
     };
@@ -182,7 +182,7 @@ async fn create(
     state.create(new_table.clone()).await;
     state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after creating
 
-    info!("Created table: {:?}", new_table);
+    info!("Created table: {:?}", &new_table);
     Ok(Json(new_table))
 }
 
@@ -223,12 +223,12 @@ async fn update_table(
     let new_name = payload.new_name;
 
     if let Some(mut table) = state.get(&current_name).await {
-        table.name = new_name.clone();
+        table.name = new_name;
         state.drop_table(&current_name).await;
         state.create(table.clone()).await;
         state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after updating
-        info!("Updated table name from '{}' to '{}'", current_name, new_name);
-        Ok(Json(format!("Updated table name from '{}' to '{}'", current_name, new_name)))
+        info!("Updated table name from '{}' to '{}'", current_name, table.name);
+        Ok(Json(format!("Updated table name from '{}' to '{}'", current_name, table.name)))
     } else {
         Err(format!("Table '{}' does not exist", current_name))
     }
@@ -257,7 +257,7 @@ async fn insert_column(
         );
         table.add_column(column.clone());
         state.drop_table(&table_name).await;
-        state.create(table.clone()).await;
+        state.create(table).await;
         state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after inserting column
         info!("Inserted column into table '{}': {:?}", table_name, column);
         Ok(Json(column))
@@ -284,18 +284,18 @@ async fn create_table(
     }
 
     let mut new_table = Table {
-        name: table_name.clone(),
+        name: table_name,
         columns: Vec::new(),
         rows: Vec::new(),
     };
 
-    for insert_column_request in &payload.insert_column_requests {
+    for insert_column_request in payload.insert_column_requests {
         let column = Column::new(
-            insert_column_request.key.clone(),
+            insert_column_request.key,
             insert_column_request.primary_key,
             insert_column_request.non_null,
             insert_column_request.unique,
-            insert_column_request.foreign_key.clone().map(|fk| fk.into_iter().map(Box::new).collect()),
+            insert_column_request.foreign_key.map(|fk| fk.into_iter().map(Box::new).collect()),
         );
         new_table.add_column(column);
     }
@@ -328,12 +328,14 @@ async fn insert_row(
             return Err(format!("Row has too many values ({}), expected {}", row.values.len(), columns_len));
         }
 
-        table.add_row(row.clone());
-        state.drop_table(&table_name).await;
-        state.create(table.clone()).await;
-        state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after inserting row
+
+        let json = Ok(Json(row.values.iter().map(|cell| cell.value.clone()).collect()));
         info!("Inserted row into table '{}': {:?}", table_name, row);
-        Ok(Json(row.values.into_iter().map(|cell| cell.value).collect()))
+        table.add_row(row);
+        state.drop_table(&table_name).await;
+        state.create(table).await;
+        state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after inserting row
+        json
     } else {
         Err(format!("Table '{}' does not exist", table_name))
     }
@@ -373,9 +375,9 @@ async fn select(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<SelectRequest>
 ) -> Result<Json<Vec<Vec<String>>>, String> {
-    if let Some(table) = state.get(&payload.table_name).await {
-        let selected_columns = match &payload.columns {
-            Some(cols) => cols.clone(),
+    if let Some(table) = state.get(payload.table_name.as_str()).await {
+        let selected_columns = match payload.columns {
+            Some(cols) => cols,
             None => table.columns.iter().map(|col| col.key.clone()).collect(), // SELECT *
         };
 
@@ -408,14 +410,14 @@ async fn select(
 /// Application state holding tables
 #[derive(Clone)]
 struct AppState {
-    tables: Arc<RwLock<Vec<Table>>>,
+    tables: Arc<Mutex<Vec<Table>>>,
 }
 
 impl AppState {
     /// Create a new instance of AppState
     pub fn new() -> Self {
         AppState {
-            tables: Arc::new(RwLock::new(Vec::new())),
+            tables: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
@@ -427,7 +429,7 @@ impl AppState {
         reader.read_to_string(&mut contents).await?;
         let tables: Vec<Table> = serde_json::from_str(&contents)?;
         Ok(AppState {
-            tables: Arc::new(RwLock::new(tables)),
+            tables: Arc::new(Mutex::new(tables)),
         })
     }
 
@@ -444,25 +446,25 @@ impl AppState {
 
     /// Add a new table to the application state
     pub async fn create(&self, table: Table) {
-        let mut lock = self.tables.write().await;
+        let mut lock = self.tables.lock().await;
         lock.push(table);
     }
 
     /// Get all tables from the application state
     pub async fn get_all(&self) -> Vec<Table> {
-        let lock = self.tables.read().await;
+        let lock = self.tables.lock().await;
         lock.iter().cloned().collect()
     }
 
     /// Get a specific table from the application state by name
     pub async fn get(&self, table_name: &str) -> Option<Table> {
-        let lock = self.tables.read().await;
+        let lock = self.tables.lock().await;
         lock.iter().find(|table| table.name == table_name).cloned()
     }
 
     /// Drop a table from the application state by name
     pub async fn drop_table(&self, table_name: &str) -> bool {
-        let mut lock = self.tables.write().await;
+        let mut lock = self.tables.lock().await;
         if let Some(index) = lock.iter().position(|table| table.name == table_name) {
             lock.remove(index);
             true
