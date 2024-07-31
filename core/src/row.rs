@@ -18,4 +18,16 @@ impl Row {
             values,
         }
     }
+
+    /// Adds a value to the row.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The value to add.
+    pub fn add_value<T>(&mut self, value: T)
+    where
+        T: Into<Value>,
+    {
+        self.values.push(value.into());
+    }
 }

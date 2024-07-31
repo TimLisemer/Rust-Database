@@ -1,9 +1,11 @@
+use axum::response::Response;
 use std::io::Error;
 use axum::{
     routing::{get, post},
     Router, Json, extract::State,
 };
 use std::sync::Arc;
+use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse};
 use tokio::{signal::ctrl_c, spawn};
 use log::{error, info, LevelFilter};
@@ -99,6 +101,7 @@ fn format_tables_html(tables: Vec<Table>) -> String {
                 table { width: 100%; border-collapse: collapse; }
                 th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
                 th { background-color: #f2f2f2; }
+             .label { font-size: 10px; color: #666; }
             </style>
         </head>
         <body>
@@ -109,35 +112,52 @@ fn format_tables_html(tables: Vec<Table>) -> String {
         html.push_str(&format!(r#"
             <h2>{}</h2>
             <table>
-                <tr><th>Column Name</th><th>Primary Key</th><th>Non Null</th><th>Unique</th></tr>
+                <tr>
         "#, table.name));
 
-        for column in table.columns {
+        for column in &table.columns {
+            let mut labels = Vec::new();
+
+            if column.primary_key {
+                labels.push("Primary");
+            }
+            if column.unique {
+                labels.push("Unique");
+            }
+            if column.non_null {
+                labels.push("Non-Null");
+            }
+
+            let labels_str = labels.join(", ");
+
             html.push_str(&format!(r#"
-                <tr>
-                    <td>{}</td>
-                    <td>{}</td>
-                    <td>{}</td>
-                    <td>{}</td>
+                    <th style="border-right: 1px solid #ddd;"><span style="float: left;">{}</span><span class="label" style="float: right;">{}</span></th>
+            "#, column.key, labels_str));
+        }
+
+        html.push_str(r#"
                 </tr>
-            "#, column.key, column.primary_key, column.non_null, column.unique));
+        "#);
+
+        for row in &table.rows {
+            html.push_str(r#"
+                <tr>
+            "#);
+
+            for value in &row.values {
+                html.push_str(&format!(r#"
+                    <td style="border-right: 1px solid #ddd;">{}</td>
+                "#, value.as_string().unwrap_or_default()));
+            }
+
+            html.push_str(r#"
+                </tr>
+            "#);
         }
 
         html.push_str(r#"
             </table>
-            <h3>Rows</h3>
-            <table>
-                <tr><th>Row Values</th></tr>
         "#);
-
-        for row in table.rows {
-            let row_values: Vec<String> = row.values.into_iter().map(|value| value.value).collect();
-            html.push_str(&format!(r#"
-                <tr><td>{}</td></tr>
-            "#, row_values.join(", ")));
-        }
-
-        html.push_str("</table>");
     }
 
     html.push_str(r#"
@@ -166,11 +186,13 @@ async fn get_tables(State(state): State<Arc<AppState>>) -> Json<Vec<Table>> {
 async fn create(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<CreateRequests>
-) -> Result<Json<Table>, String> {
+) -> Response {
     let table_name = payload.name;
 
     if state.get(&table_name).await.is_some() {
-        return Err(format!("Table '{}' already exists", table_name));
+        let error = format!("Table '{}' already exists", table_name);
+        error!("{}", error);
+        return (StatusCode::BAD_REQUEST, Json(error)).into_response();
     }
 
     let new_table = Table {
@@ -180,11 +202,19 @@ async fn create(
     };
 
     state.create(new_table.clone()).await;
-    state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after creating
-
-    info!("Created table: {:?}", &new_table);
-    Ok(Json(new_table))
+    match state.save().await {
+        Ok(_) => {
+            info!("Created table: {:?}", &new_table);
+            (StatusCode::OK, Json(new_table)).into_response()
+        }
+        Err(err) => {
+            let error = format!("Failed to save state: {}", err);
+            error!("{}", error);
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
+        }
+    }
 }
+
 
 /// Handler to drop a table
 ///
@@ -196,17 +226,28 @@ async fn create(
 async fn drop_table(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<DropTableRequest>
-) -> Result<Json<String>, String> {
+) -> Response {
     let table_name = payload.name;
 
     if state.drop_table(&table_name).await {
-        state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after dropping
-        info!("Dropped table: {}", table_name);
-        Ok(Json(format!("Dropped table '{}'", table_name)))
+        match state.save().await {
+            Ok(_) => {
+                info!("Dropped table: {}", table_name);
+                (StatusCode::OK, Json(format!("Dropped table '{}'", table_name))).into_response()
+            }
+            Err(err) => {
+                let error = format!("Failed to save state: {}", err);
+                error!("{}", error);
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
+            }
+        }
     } else {
-        Err(format!("Table '{}' does not exist", table_name))
+        let error = format!("Table '{}' does not exist", table_name);
+        error!("{}", error);
+        (StatusCode::NOT_FOUND, Json(error)).into_response()
     }
 }
+
 
 /// Handler to update a table's name
 ///
@@ -218,7 +259,7 @@ async fn drop_table(
 async fn update_table(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<UpdateTableRequest>
-) -> Result<Json<String>, String> {
+) -> Response {
     let current_name = payload.current_name;
     let new_name = payload.new_name;
 
@@ -226,13 +267,24 @@ async fn update_table(
         table.name = new_name;
         state.drop_table(&current_name).await;
         state.create(table.clone()).await;
-        state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after updating
-        info!("Updated table name from '{}' to '{}'", current_name, table.name);
-        Ok(Json(format!("Updated table name from '{}' to '{}'", current_name, table.name)))
+        match state.save().await {
+            Ok(_) => {
+                info!("Updated table name from '{}' to '{}'", current_name, table.name);
+                (StatusCode::OK, Json(format!("Updated table name from '{}' to '{}'", current_name, table.name))).into_response()
+            }
+            Err(err) => {
+                let error = format!("Failed to save state: {}", err);
+                error!("{}", error);
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
+            }
+        }
     } else {
-        Err(format!("Table '{}' does not exist", current_name))
+        let error = format!("Table '{}' does not exist", current_name);
+        error!("{}", error);
+        (StatusCode::NOT_FOUND, Json(error)).into_response()
     }
 }
+
 
 /// Handler to insert a new column into a table
 ///
@@ -244,7 +296,7 @@ async fn update_table(
 async fn insert_column(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<InsertColumnRequest>
-) -> Result<Json<Column>, String> {
+) -> Response {
     let table_name = payload.table_name;
 
     if let Some(mut table) = state.get(&table_name).await {
@@ -258,14 +310,32 @@ async fn insert_column(
         table.add_column(column.clone());
         state.drop_table(&table_name).await;
         state.create(table).await;
-        state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after inserting column
-        info!("Inserted column into table '{}': {:?}", table_name, column);
-        Ok(Json(column))
+        match state.save().await {
+            Ok(_) => {
+                info!("Inserted column into table '{}': {:?}", table_name, column);
+                (StatusCode::OK, Json(column)).into_response()
+            }
+            Err(err) => {
+                let error = format!("Failed to save state: {}", err);
+                error!("{}", error);
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
+            }
+        }
     } else {
-        Err(format!("Table '{}' does not exist", table_name))
+        let error = format!("Table '{}' does not exist", table_name);
+        error!("{}", error);
+        (StatusCode::NOT_FOUND, Json(error)).into_response()
     }
 }
 
+
+/// Handler to create a new table with specified columns
+///
+/// # Example
+///
+/// ```
+/// curl -X POST http://localhost:3000/create_table -H '{"name":"test_create_table", "insert_column_requests":[{"table_name":"test_create_table", "key":"test_create_key", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null},{"table_name":"test_create_table", "key":"test_create_key2", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null}]}'
+/// ```
 /// Handler to create a new table with specified columns
 ///
 /// # Example
@@ -276,36 +346,48 @@ async fn insert_column(
 async fn create_table(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<CreateTableRequests>
-) -> Result<Json<Table>, String> {
+) -> impl IntoResponse {
     let table_name = payload.name;
 
     if state.get(&table_name).await.is_some() {
-        return Err(format!("Table '{}' already exists", table_name));
+        return (StatusCode::BAD_REQUEST, Json(format!("Table '{}' already exists", table_name))).into_response();
     }
 
-    let mut new_table = Table {
-        name: table_name,
+    let new_table = Table {
+        name: table_name.clone(),
         columns: Vec::new(),
         rows: Vec::new(),
     };
 
+    state.create(new_table.clone()).await;
+
     for insert_column_request in payload.insert_column_requests {
-        let column = Column::new(
-            insert_column_request.key,
-            insert_column_request.primary_key,
-            insert_column_request.non_null,
-            insert_column_request.unique,
-            insert_column_request.foreign_key.map(|fk| fk.into_iter().map(Box::new).collect()),
-        );
-        new_table.add_column(column);
+        let mut request = insert_column_request;
+        request.table_name = table_name.clone();
+        let json_payload = Json(request);
+
+        let response = insert_column(State(state.clone()), json_payload).await;
+
+        // Return immediately if there's an error
+        if response.status() != StatusCode::OK {
+            return response;
+        }
     }
 
-    state.create(new_table.clone()).await;
-    state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after creating table
-
-    info!("Created table: {:?}", new_table);
-    Ok(Json(new_table))
+    match state.save().await {
+        Ok(_) => {
+            info!("Created table: {:?}", new_table);
+            (StatusCode::OK, Json(new_table)).into_response()
+        }
+        Err(err) => {
+            let error_message = format!("Failed to save state: {}", err);
+            error!("{}", error_message);
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_message)).into_response()
+        }
+    }
 }
+
+
 
 /// Handler to insert a new row into a table
 ///
@@ -314,30 +396,63 @@ async fn create_table(
 /// ```
 /// curl -X POST http://localhost:3000/insert_row -H '{"table_name":"test_table","row":["test_value","test_value2"]}'
 /// ```
+// Modify the return type to `impl IntoResponse`
 async fn insert_row(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<InsertRowRequest>
-) -> Result<Json<Vec<String>>, String> {
+) -> Response {
     let table_name = payload.table_name;
+    info!("Received insert request for table '{}'", table_name);
 
     if let Some(mut table) = state.get(&table_name).await {
-        let row = payload.row;
+        let mut row = payload.row;
+        info!("Inserting row: {:?}", row);
 
         let columns_len = table.columns.len();
+        info!("Table '{}' expects {} columns", table_name, columns_len);
+
         if row.values.len() > columns_len {
-            return Err(format!("Row has too many values ({}), expected {}", row.values.len(), columns_len));
+            let error = format!("Row has {} values, but table expects {} values consider adding more columns", row.values.len(), columns_len);
+            error!("{}", error);
+            return (StatusCode::BAD_REQUEST, Json(error)).into_response();
         }
 
+        if row.values.len() < columns_len {
+            // Check if column allows Non-Null
+            let additional_rows = columns_len - row.values.len();
+            // if any additional columns are non_null return with an error
+            if table.columns.iter().rev().take(additional_rows).any(|col|col.non_null) {
+                let error = format!("Row has {} values, but table expects {} values. This fails out because at least one additional column is Non-Null", row.values.len(), columns_len);
+                error!("{}", error);
+                return (StatusCode::BAD_REQUEST, Json(error)).into_response();
+            } else {
+                for _ in 0..additional_rows {
+                    row.add_value(None)
+                }
+            }
+        }
 
-        let json = Ok(Json(row.values.iter().map(|cell| cell.value.clone()).collect()));
-        info!("Inserted row into table '{}': {:?}", table_name, row);
-        table.add_row(row);
+        let row_values = row.values.iter().map(|value| value.as_string().unwrap_or_default()).collect::<Vec<String>>();
+        table.add_row(row.clone());
         state.drop_table(&table_name).await;
         state.create(table).await;
-        state.save().await.map_err(|err| format!("Failed to save state: {}", err))?; // Save after inserting row
-        json
+
+        // Handle the Result from state.save() manually
+        match state.save().await {
+            Ok(_) => {
+                info!("Inserted row into table '{}': {:?}", table_name, row);
+                (StatusCode::OK, Json(row_values)).into_response()
+            }
+            Err(err) => {
+                let error_message = format!("Failed to save state: {}", err);
+                error!("{}", error_message);
+                (StatusCode::INTERNAL_SERVER_ERROR, Json(error_message)).into_response()
+            }
+        }
     } else {
-        Err(format!("Table '{}' does not exist", table_name))
+        let error = format!("Table '{}' does not exist", table_name);
+        error!("{}", error);
+        return (StatusCode::NOT_FOUND, Json(error)).into_response();
     }
 }
 
@@ -374,7 +489,7 @@ async fn insert_row(
 async fn select(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<SelectRequest>
-) -> Result<Json<Vec<Vec<String>>>, String> {
+) -> Response {
     if let Some(table) = state.get(payload.table_name.as_str()).await {
         let selected_columns = match payload.columns {
             Some(cols) => cols,
@@ -386,26 +501,31 @@ async fn select(
         for row in &table.rows {
             if let Some(cond) = &payload.condition {
                 if let Some(col_index) = table.columns.iter().position(|col| col.key == cond.column) {
-                    if row.values[col_index].value != cond.value {
+                    if row.values[col_index].as_string().unwrap_or_default() != cond.value {
                         continue;
                     }
                 } else {
-                    return Err(format!("Column '{}' not found", cond.column));
+                    let error = format!("Column '{}' not found", cond.column);
+                    error!("{}", error);
+                    return (StatusCode::BAD_REQUEST, Json(error)).into_response();
                 }
             }
 
             let selected_values = selected_columns.iter().filter_map(|col_key| {
-                table.columns.iter().position(|col| col.key.eq(col_key)).map(|index| row.values[index].value.clone())
+                table.columns.iter().position(|col| col.key.eq(col_key)).map(|index| row.values[index].as_string().unwrap_or_default())
             }).collect::<Vec<String>>();
 
             rows.push(selected_values);
         }
 
-        Ok(Json(rows))
+        (StatusCode::OK, Json(rows)).into_response()
     } else {
-        Err(format!("Table '{}' does not exist", payload.table_name))
+        let error = format!("Table '{}' does not exist", payload.table_name);
+        error!("{}", error);
+        (StatusCode::NOT_FOUND, Json(error)).into_response()
     }
 }
+
 
 /// Application state holding tables
 #[derive(Clone)]
