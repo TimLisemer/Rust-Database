@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
 use crate::column::Column;
 use crate::row::Row;
+use serde::{Deserialize, Serialize};
 
 /// Represents a request to create a new table.
 #[derive(Deserialize)]
@@ -12,7 +12,7 @@ pub struct CreateRequests {
 #[derive(Deserialize, Serialize)]
 pub struct CreateTableRequests {
     pub name: String,
-    pub insert_column_requests: Vec<InsertColumnRequest>
+    pub insert_column_requests: Vec<InsertColumnRequest>,
 }
 
 impl CreateTableRequests {
@@ -24,7 +24,7 @@ impl CreateTableRequests {
     pub fn new(name: String) -> Self {
         CreateTableRequests {
             name,
-            insert_column_requests: Vec::new()
+            insert_column_requests: Vec::new(),
         }
     }
 }
@@ -63,7 +63,7 @@ pub struct InsertRowRequest {
 /// Represents a request to select a new row off a table.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SelectRequest {
-    pub columns: Option<Vec<String>>,  // None means SELECT *
+    pub columns: Option<Vec<String>>, // None means SELECT *
     pub table_name: String,
     pub condition: Option<Condition>,
 }

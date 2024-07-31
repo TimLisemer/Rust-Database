@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::value::Value;
+use serde::{Deserialize, Serialize};
 
 /// Represents a row in a database table.
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -14,9 +14,7 @@ impl Row {
     ///
     /// * `values` - The values of the row.
     pub fn new(values: Vec<Value>) -> Self {
-        Row {
-            values,
-        }
+        Row { values }
     }
 
     /// Adds a value to the row.

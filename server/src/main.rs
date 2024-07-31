@@ -1,27 +1,28 @@
-use axum::response::Response;
-use std::io::Error;
-use axum::{
-    routing::{get, post},
-    Router, Json, extract::State,
-};
-use std::sync::Arc;
 use axum::http::StatusCode;
+use axum::response::Response;
 use axum::response::{Html, IntoResponse};
-use tokio::{signal::ctrl_c, spawn};
-use log::{error, info, LevelFilter};
-use tokio::sync::Mutex;
-use tokio::fs::{File, OpenOptions};
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt, BufReader};
+use axum::{
+    extract::State,
+    routing::{get, post},
+    Json, Router,
+};
 use core::{
-    row::Row,
-    value::Value,
-    table::Table,
     column::Column,
     request_types::{
-        CreateRequests, CreateTableRequests, DropTableRequest, UpdateRequest,
-        RenameTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, Condition
+        Condition, CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest,
+        InsertRowRequest, RenameTableRequest, SelectRequest, UpdateRequest,
     },
+    row::Row,
+    table::Table,
+    value::Value,
 };
+use log::{error, info, LevelFilter};
+use std::io::Error;
+use std::sync::Arc;
+use tokio::fs::{File, OpenOptions};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::sync::Mutex;
+use tokio::{signal::ctrl_c, spawn};
 
 #[tokio::main]
 async fn main() {
@@ -32,7 +33,8 @@ async fn main() {
         .init();
 
     // Load application state from file or create new state
-    let app_state: Arc<AppState> = Arc::new(AppState::load().await.unwrap_or_else(|_| AppState::new()));
+    let app_state: Arc<AppState> =
+        Arc::new(AppState::load().await.unwrap_or_else(|_| AppState::new()));
 
     // Define routes and handlers
     let app = Router::new()
@@ -76,7 +78,8 @@ async fn main() {
                 error!("Failed to save state: {}", err);
             }
         }
-    }).await;
+    })
+    .await;
 
     // Wait for server task to finish (though it should run indefinitely until SIGINT)
     if let Err(err) = server_task.await {
@@ -94,7 +97,8 @@ async fn root(State(state): State<Arc<AppState>>) -> impl IntoResponse {
 fn format_tables_html(tables: Vec<Table>) -> String {
     let mut html = String::new();
 
-    html.push_str(r#"
+    html.push_str(
+        r#"
         <!DOCTYPE html>
         <html>
         <head>
@@ -109,14 +113,18 @@ fn format_tables_html(tables: Vec<Table>) -> String {
         </head>
         <body>
             <h1>Database Tables</h1>
-    "#);
+    "#,
+    );
 
     for table in tables {
-        html.push_str(&format!(r#"
+        html.push_str(&format!(
+            r#"
             <h2>{}</h2>
             <table>
                 <tr>
-        "#, table.name));
+        "#,
+            table.name
+        ));
 
         for column in &table.columns {
             let mut labels = Vec::new();
@@ -138,35 +146,48 @@ fn format_tables_html(tables: Vec<Table>) -> String {
             "#, column.key, labels_str));
         }
 
-        html.push_str(r#"
+        html.push_str(
+            r#"
                 </tr>
-        "#);
+        "#,
+        );
 
         for row in &table.rows {
-            html.push_str(r#"
+            html.push_str(
+                r#"
                 <tr>
-            "#);
+            "#,
+            );
 
             for value in &row.values {
-                html.push_str(&format!(r#"
+                html.push_str(&format!(
+                    r#"
                     <td style="border-right: 1px solid #ddd;">{}</td>
-                "#, value.as_string().unwrap_or_default()));
+                "#,
+                    value.as_string().unwrap_or_default()
+                ));
             }
 
-            html.push_str(r#"
+            html.push_str(
+                r#"
                 </tr>
-            "#);
+            "#,
+            );
         }
 
-        html.push_str(r#"
+        html.push_str(
+            r#"
             </table>
-        "#);
+        "#,
+        );
     }
 
-    html.push_str(r#"
+    html.push_str(
+        r#"
             </body>
         </html>
-    "#);
+    "#,
+    );
 
     html
 }
@@ -202,7 +223,7 @@ async fn get_tables(State(state): State<Arc<AppState>>) -> Json<Vec<Table>> {
 /// - Returns an error if a table with the same name already exists.
 async fn create(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<CreateRequests>
+    Json(payload): Json<CreateRequests>,
 ) -> Response {
     let table_name = payload.name;
 
@@ -232,7 +253,6 @@ async fn create(
     }
 }
 
-
 /// Handler to drop a table
 ///
 /// # Example
@@ -256,7 +276,7 @@ async fn create(
 /// - Returns an error if the table does not exist.
 async fn drop_table(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<DropTableRequest>
+    Json(payload): Json<DropTableRequest>,
 ) -> Response {
     let table_name = payload.name;
 
@@ -264,7 +284,11 @@ async fn drop_table(
         match state.save().await {
             Ok(_) => {
                 info!("Dropped table: {}", table_name);
-                (StatusCode::OK, Json(format!("Dropped table '{}'", table_name))).into_response()
+                (
+                    StatusCode::OK,
+                    Json(format!("Dropped table '{}'", table_name)),
+                )
+                    .into_response()
             }
             Err(err) => {
                 let error = format!("Failed to save state: {}", err);
@@ -278,7 +302,6 @@ async fn drop_table(
         (StatusCode::NOT_FOUND, Json(error)).into_response()
     }
 }
-
 
 /// Handler to rename a table's name
 ///
@@ -304,7 +327,7 @@ async fn drop_table(
 /// - Returns an error if the table does not exist.
 async fn rename_table(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<RenameTableRequest>
+    Json(payload): Json<RenameTableRequest>,
 ) -> Response {
     let current_name = payload.current_name;
     let new_name = payload.new_name;
@@ -315,8 +338,18 @@ async fn rename_table(
         state.create(table.clone()).await;
         match state.save().await {
             Ok(_) => {
-                info!("Rename table name from '{}' to '{}'", current_name, table.name);
-                (StatusCode::OK, Json(format!("Renamed table name from '{}' to '{}'", current_name, table.name))).into_response()
+                info!(
+                    "Rename table name from '{}' to '{}'",
+                    current_name, table.name
+                );
+                (
+                    StatusCode::OK,
+                    Json(format!(
+                        "Renamed table name from '{}' to '{}'",
+                        current_name, table.name
+                    )),
+                )
+                    .into_response()
             }
             Err(err) => {
                 let error = format!("Failed to save state: {}", err);
@@ -330,7 +363,6 @@ async fn rename_table(
         (StatusCode::NOT_FOUND, Json(error)).into_response()
     }
 }
-
 
 /// Handler to insert a new column into a table
 ///
@@ -360,7 +392,7 @@ async fn rename_table(
 /// - Returns an error if the table does not exist.
 async fn insert_column(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<InsertColumnRequest>
+    Json(payload): Json<InsertColumnRequest>,
 ) -> Response {
     let table_name = payload.table_name;
 
@@ -370,7 +402,9 @@ async fn insert_column(
             payload.primary_key,
             payload.non_null,
             payload.unique,
-            payload.foreign_key.map(|fk| fk.into_iter().map(Box::new).collect()),
+            payload
+                .foreign_key
+                .map(|fk| fk.into_iter().map(Box::new).collect()),
         );
         table.add_column(column.clone());
         state.drop_table(&table_name).await;
@@ -392,8 +426,6 @@ async fn insert_column(
         (StatusCode::NOT_FOUND, Json(error)).into_response()
     }
 }
-
-
 
 /// Handler to create a new table with specified columns
 ///
@@ -419,12 +451,16 @@ async fn insert_column(
 /// - Returns an error if a table with the same name already exists.
 async fn create_table(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<CreateTableRequests>
+    Json(payload): Json<CreateTableRequests>,
 ) -> impl IntoResponse {
     let table_name = payload.name;
 
     if state.get(&table_name).await.is_some() {
-        return (StatusCode::BAD_REQUEST, Json(format!("Table '{}' already exists", table_name))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(format!("Table '{}' already exists", table_name)),
+        )
+            .into_response();
     }
 
     let new_table = Table {
@@ -461,8 +497,6 @@ async fn create_table(
     }
 }
 
-
-
 /// Handler to insert a new row into a table
 ///
 /// # Example
@@ -487,7 +521,7 @@ async fn create_table(
 /// - Returns an error if the table does not exist.
 async fn insert_row(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<InsertRowRequest>
+    Json(payload): Json<InsertRowRequest>,
 ) -> Response {
     let table_name = payload.table_name;
     info!("Received insert request for table '{}'", table_name);
@@ -500,7 +534,11 @@ async fn insert_row(
         info!("Table '{}' expects {} columns", table_name, columns_len);
 
         if row.values.len() > columns_len {
-            let error = format!("Row has {} values, but table expects {} values consider adding more columns", row.values.len(), columns_len);
+            let error = format!(
+                "Row has {} values, but table expects {} values consider adding more columns",
+                row.values.len(),
+                columns_len
+            );
             error!("{}", error);
             return (StatusCode::BAD_REQUEST, Json(error)).into_response();
         }
@@ -509,7 +547,13 @@ async fn insert_row(
             // Check if column allows Non-Null
             let additional_rows = columns_len - row.values.len();
             // if any additional columns are non_null return with an error
-            if table.columns.iter().rev().take(additional_rows).any(|col|col.non_null) {
+            if table
+                .columns
+                .iter()
+                .rev()
+                .take(additional_rows)
+                .any(|col| col.non_null)
+            {
                 let error = format!("Row has {} values, but table expects {} values. This fails out because at least one additional column is Non-Null", row.values.len(), columns_len);
                 error!("{}", error);
                 return (StatusCode::BAD_REQUEST, Json(error)).into_response();
@@ -520,7 +564,11 @@ async fn insert_row(
             }
         }
 
-        let row_values = row.values.iter().map(|value| value.as_string().unwrap_or_default()).collect::<Vec<String>>();
+        let row_values = row
+            .values
+            .iter()
+            .map(|value| value.as_string().unwrap_or_default())
+            .collect::<Vec<String>>();
         table.add_row(row.clone());
         state.drop_table(&table_name).await;
         state.create(table).await;
@@ -576,7 +624,7 @@ async fn insert_row(
 ///
 async fn select(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<SelectRequest>
+    Json(payload): Json<SelectRequest>,
 ) -> Response {
     if let Some(table) = state.get(payload.table_name.as_str()).await {
         let rows = select_rows(&table, payload.columns, payload.condition.as_ref()).await;
@@ -620,7 +668,7 @@ async fn select_rows(
     for row in &table.rows {
         if let Some(cond) = condition {
             if let Some(col_index) = table.columns.iter().position(|col| col.key == cond.column) {
-                if row.values[col_index].as_string().unwrap_or_default()!= cond.value {
+                if row.values[col_index].as_string().unwrap_or_default() != cond.value {
                     continue;
                 }
             } else {
@@ -683,7 +731,7 @@ async fn select_rows(
 /// - This handler supports flexible row filtering based on conditions and updates multiple columns at once.
 async fn update_table(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<UpdateRequest>
+    Json(payload): Json<UpdateRequest>,
 ) -> Response {
     if let Some(mut table) = state.get(payload.table_name.as_str()).await {
         // Fetch rows that match the condition
@@ -694,7 +742,11 @@ async fn update_table(
                 // Update logic for rows that match the condition
                 for row in &mut selected_rows {
                     for update in &payload.updates {
-                        if let Some(col_index) = table.columns.iter().position(|col| col.key == update.column) {
+                        if let Some(col_index) = table
+                            .columns
+                            .iter()
+                            .position(|col| col.key == update.column)
+                        {
                             row.values[col_index] = Value::from(update.value.clone());
                         } else {
                             let error = format!("Column '{}' not found", update.column);
@@ -707,11 +759,22 @@ async fn update_table(
                 // Apply the updates back to the original table rows
                 for row in &mut table.rows {
                     if let Some(condition) = &payload.condition {
-                        if let Some(col_index) = table.columns.iter().position(|col| col.key == condition.column) {
-                            if row.values[col_index].as_string().unwrap_or_default() == condition.value {
+                        if let Some(col_index) = table
+                            .columns
+                            .iter()
+                            .position(|col| col.key == condition.column)
+                        {
+                            if row.values[col_index].as_string().unwrap_or_default()
+                                == condition.value
+                            {
                                 for update in &payload.updates {
-                                    if let Some(update_col_index) = table.columns.iter().position(|col| col.key == update.column) {
-                                        row.values[update_col_index] = Value::from(update.value.clone());
+                                    if let Some(update_col_index) = table
+                                        .columns
+                                        .iter()
+                                        .position(|col| col.key == update.column)
+                                    {
+                                        row.values[update_col_index] =
+                                            Value::from(update.value.clone());
                                     }
                                 }
                             }
@@ -747,7 +810,6 @@ async fn update_table(
     }
 }
 
-
 /// Application state holding tables
 #[derive(Clone)]
 struct AppState {
@@ -764,7 +826,9 @@ impl AppState {
 
     /// Load application state from file
     pub async fn load() -> Result<Self, Error> {
-        let file = File::open("db.json").await.map_err(|_| Error::new(io::ErrorKind::NotFound, "File not found"))?;
+        let file = File::open("db.json")
+            .await
+            .map_err(|_| Error::new(io::ErrorKind::NotFound, "File not found"))?;
         let mut reader = BufReader::new(file);
         let mut contents = String::new();
         reader.read_to_string(&mut contents).await?;
@@ -778,7 +842,12 @@ impl AppState {
     pub async fn save(&self) -> Result<(), Error> {
         let tables = self.get_all().await;
         let contents = serde_json::to_string(&tables)?;
-        let file = OpenOptions::new().create(true).write(true).truncate(true).open("db.json").await?;
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open("db.json")
+            .await?;
         let mut writer = io::BufWriter::new(file);
         writer.write_all(contents.as_bytes()).await?;
         writer.flush().await?;

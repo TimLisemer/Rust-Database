@@ -20,7 +20,7 @@ impl Table {
         Table {
             name,
             columns: Vec::new(),
-            rows: Vec::new()
+            rows: Vec::new(),
         }
     }
 

@@ -26,12 +26,12 @@
 //!
 //! For examples of using the client_functions, see the documentation of the client_functions module.
 
-pub mod table;
+pub mod client_functions;
 pub mod column;
 pub mod request_types;
-pub mod value;
 pub mod row;
-pub mod client_functions;
+pub mod table;
+pub mod value;
 
 #[cfg(feature = "doc_examples")]
 extern crate reqwest;

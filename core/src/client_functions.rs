@@ -1,9 +1,12 @@
 //! Client Functions to interact with the server's API.
+use crate::request_types::{
+    CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest, InsertRowRequest,
+    RenameTableRequest, SelectRequest, UpdateRequest,
+};
 use log::{debug, error, info};
-use std::error;
-use reqwest::{Client};
+use reqwest::Client;
 use serde_json::json;
-use crate::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, RenameTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, UpdateRequest};
+use std::error;
 
 /// Creates a new table on the server.
 ///
@@ -34,16 +37,16 @@ use crate::request_types::{CreateRequests, CreateTableRequests, DropTableRequest
 ///     create(&client, &create_request).await.unwrap();
 /// }
 /// ```
-pub async fn create(client: &Client, create_table_request: &CreateRequests) -> Result<(), Box<dyn error::Error>> {
+pub async fn create(
+    client: &Client,
+    create_table_request: &CreateRequests,
+) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/create".to_string();
     let body = json!({
         "name": create_table_request.name,
     });
 
-    let resp = client.post(&url)
-        .json(&body)
-        .send()
-        .await?;
+    let resp = client.post(&url).json(&body).send().await?;
 
     match resp.status().is_success() {
         true => {
@@ -52,8 +55,13 @@ pub async fn create(client: &Client, create_table_request: &CreateRequests) -> R
             Ok(())
         }
         false => {
-            error!("Create Response: {:?}", resp);
-            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to create table")))
+            debug!("Create Response: {:?}", resp);
+            let error_body = resp.json::<serde_json::Value>().await?;
+            let error_message = error_body.as_str().unwrap_or("Unknown error");
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                error_message,
+            )))
         }
     }
 }
@@ -99,13 +107,13 @@ pub async fn create(client: &Client, create_table_request: &CreateRequests) -> R
 ///     }).await.unwrap();
 /// }
 /// ```
-pub async fn create_table(client: &Client, create_table_request: &CreateTableRequests) -> Result<(), Box<dyn error::Error>> {
+pub async fn create_table(
+    client: &Client,
+    create_table_request: &CreateTableRequests,
+) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/create_table".to_string();
 
-    let resp = client.post(&url)
-        .json(create_table_request)
-        .send()
-        .await?;
+    let resp = client.post(&url).json(create_table_request).send().await?;
 
     match resp.status().is_success() {
         true => {
@@ -114,8 +122,13 @@ pub async fn create_table(client: &Client, create_table_request: &CreateTableReq
             Ok(())
         }
         false => {
-            error!("Create Table Response: {:?}", resp);
-            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to create table with columns")))
+            debug!("Create Table Response: {:?}", resp);
+            let error_body = resp.json::<serde_json::Value>().await?;
+            let error_message = error_body.as_str().unwrap_or("Unknown error");
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                error_message,
+            )))
         }
     }
 }
@@ -149,13 +162,13 @@ pub async fn create_table(client: &Client, create_table_request: &CreateTableReq
 ///     drop_table(&client, &drop_table_request).await.unwrap();
 /// }
 /// ```
-pub async fn drop_table(client: &Client, drop_table_request: &DropTableRequest) -> Result<(), Box<dyn error::Error>> {
+pub async fn drop_table(
+    client: &Client,
+    drop_table_request: &DropTableRequest,
+) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/drop_table".to_string();
 
-    let resp = client.post(&url)
-        .json(drop_table_request)
-        .send()
-        .await?;
+    let resp = client.post(&url).json(drop_table_request).send().await?;
 
     match resp.status().is_success() {
         true => {
@@ -163,7 +176,10 @@ pub async fn drop_table(client: &Client, drop_table_request: &DropTableRequest) 
             info!("Dropped Table {:?}", drop_table_request.name);
         }
         false => {
-            error!("Drop Table Response (Table probably doesnt exist): {:?}", resp);
+            debug!("Create Table Response: {:?}", resp);
+            let error_body = resp.json::<serde_json::Value>().await?;
+            let error_message = error_body.as_str().unwrap_or("Unknown error");
+            error!("{}", error_message);
         }
     }
     Ok(())
@@ -198,13 +214,13 @@ pub async fn drop_table(client: &Client, drop_table_request: &DropTableRequest) 
 ///     rename_table(&client, &rename_table_request).await.unwrap();
 /// }
 /// ```
-pub async fn rename_table(client: &Client, rename_table_request: &RenameTableRequest) -> Result<(), Box<dyn error::Error>> {
+pub async fn rename_table(
+    client: &Client,
+    rename_table_request: &RenameTableRequest,
+) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/rename_table".to_string();
 
-    let resp = client.post(&url)
-        .json(rename_table_request)
-        .send()
-        .await?;
+    let resp = client.post(&url).json(rename_table_request).send().await?;
 
     match resp.status().is_success() {
         true => {
@@ -213,8 +229,13 @@ pub async fn rename_table(client: &Client, rename_table_request: &RenameTableReq
             Ok(())
         }
         false => {
-            error!("Rename Table Response: {:?}", resp);
-            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to rename table")))
+            debug!("Rename Table Response: {:?}", resp);
+            let error_body = resp.json::<serde_json::Value>().await?;
+            let error_message = error_body.as_str().unwrap_or("Unknown error");
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                error_message,
+            )))
         }
     }
 }
@@ -256,13 +277,13 @@ pub async fn rename_table(client: &Client, rename_table_request: &RenameTableReq
 ///     insert_column(&client, &insert_column_request).await.unwrap();
 /// }
 /// ```
-pub async fn insert_column(client: &Client, insert_column_request: &InsertColumnRequest) -> Result<(), Box<dyn error::Error>> {
+pub async fn insert_column(
+    client: &Client,
+    insert_column_request: &InsertColumnRequest,
+) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/insert_column".to_string();
 
-    let resp = client.post(&url)
-        .json(insert_column_request)
-        .send()
-        .await?;
+    let resp = client.post(&url).json(insert_column_request).send().await?;
 
     match resp.status().is_success() {
         true => {
@@ -271,8 +292,13 @@ pub async fn insert_column(client: &Client, insert_column_request: &InsertColumn
             Ok(())
         }
         false => {
-            error!("Insert Column Response: {:?}", resp);
-            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to insert column")))
+            debug!("Insert Column Response: {:?}", resp);
+            let error_body = resp.json::<serde_json::Value>().await?;
+            let error_message = error_body.as_str().unwrap_or("Unknown error");
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                error_message,
+            )))
         }
     }
 }
@@ -313,13 +339,13 @@ pub async fn insert_column(client: &Client, insert_column_request: &InsertColumn
 ///     insert_row(&client, &insert_row_request).await.unwrap();
 /// }
 /// ```
-pub async fn insert_row(client: &Client, insert_row_request: &InsertRowRequest) -> Result<(), Box<dyn error::Error>> {
+pub async fn insert_row(
+    client: &Client,
+    insert_row_request: &InsertRowRequest,
+) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/insert_row".to_string();
 
-    let resp = client.post(&url)
-        .json(insert_row_request)
-        .send()
-        .await?;
+    let resp = client.post(&url).json(insert_row_request).send().await?;
 
     match resp.status().is_success() {
         true => {
@@ -328,13 +354,16 @@ pub async fn insert_row(client: &Client, insert_row_request: &InsertRowRequest) 
             Ok(())
         }
         false => {
-            error!("Insert Row Response: {:?}", resp);
-            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to insert row")))
+            debug!("Insert Row Response: {:?}", resp);
+            let error_body = resp.json::<serde_json::Value>().await?;
+            let error_message = error_body.as_str().unwrap_or("Unknown error");
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                error_message,
+            )))
         }
     }
 }
-
-
 
 /// Sends a select query to the server.
 ///
@@ -374,32 +403,34 @@ pub async fn insert_row(client: &Client, insert_row_request: &InsertRowRequest) 
 ///     select(&client, &select_request).await.unwrap();
 /// }
 /// ```
-pub async fn select(client: &Client, select_request: &SelectRequest) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn select(
+    client: &Client,
+    select_request: &SelectRequest,
+) -> Result<(), Box<dyn std::error::Error>> {
     let url = "http://localhost:3000/select".to_string();
 
-    let resp = client.post(&url)
-        .json(select_request)
-        .send()
-        .await?;
+    let resp = client.post(&url).json(select_request).send().await?;
 
     // Extract the status code before consuming `resp`
     let status = resp.status();
-    // Get the response body
-    let body = resp.text().await?;
     match status.is_success() {
         true => {
+            let body = resp.text().await?;
             debug!("Select Response: {}", body); // Log the body content
             info!("Select result from 'test_create_table': {}", body);
             Ok(())
         }
         false => {
-            error!("Select Response: {}", body); // Log the body content
-            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to select")))
+            debug!("Select Response: {:?}", resp);
+            let error_body = resp.json::<serde_json::Value>().await?;
+            let error_message = error_body.as_str().unwrap_or("Unknown error");
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                error_message,
+            )))
         }
     }
 }
-
-
 
 /// Updates rows in a table on the server based on specified conditions.
 ///
@@ -448,13 +479,13 @@ pub async fn select(client: &Client, select_request: &SelectRequest) -> Result<(
 ///     update_table(&client, &update_request).await.unwrap();
 /// }
 /// ```
-pub async fn update_table(client: &Client, update_request: &UpdateRequest) -> Result<(), Box<dyn error::Error>> {
+pub async fn update_table(
+    client: &Client,
+    update_request: &UpdateRequest,
+) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/update_table".to_string();
 
-    let resp = client.post(&url)
-        .json(update_request)
-        .send()
-        .await?;
+    let resp = client.post(&url).json(update_request).send().await?;
 
     match resp.status().is_success() {
         true => {
@@ -463,9 +494,13 @@ pub async fn update_table(client: &Client, update_request: &UpdateRequest) -> Re
             Ok(())
         }
         false => {
-            error!("Update Table Response: {:?}", resp);
-            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to update table")))
+            debug!("Update Table Response: {:?}", resp);
+            let error_body = resp.json::<serde_json::Value>().await?;
+            let error_message = error_body.as_str().unwrap_or("Unknown error");
+            Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                error_message,
+            )))
         }
     }
 }
-
