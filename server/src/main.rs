@@ -184,8 +184,22 @@ async fn get_tables(State(state): State<Arc<AppState>>) -> Json<Vec<Table>> {
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/create -H '{"name":"test_table"}'
+/// curl -X POST http://localhost:3000/create -H "Content-Type: application/json" -d '{"name":"test_table"}'
 /// ```
+///
+/// Creates a new table in the database.
+///
+/// ## Parameters
+///
+/// - `name`: The name of the table to be created.
+///
+/// ## Returns
+///
+/// Returns a JSON object representing the newly created table.
+///
+/// ## Errors
+///
+/// - Returns an error if a table with the same name already exists.
 async fn create(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<CreateRequests>
@@ -224,8 +238,22 @@ async fn create(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/drop_table -H '{"name":"test_table"}'
+/// curl -X POST http://localhost:3000/drop_table -H "Content-Type: application/json" -d '{"name":"test_table"}'
 /// ```
+///
+/// Drops a table from the database.
+///
+/// ## Parameters
+///
+/// - `name`: The name of the table to be dropped.
+///
+/// ## Returns
+///
+/// Returns a success message if the table is dropped successfully.
+///
+/// ## Errors
+///
+/// - Returns an error if the table does not exist.
 async fn drop_table(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<DropTableRequest>
@@ -257,8 +285,23 @@ async fn drop_table(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/rename_table -H '{"current_name":"test_table again","new_name":"test_table"}'
+/// curl -X POST http://localhost:3000/rename_table -H "Content-Type: application/json" -d '{"current_name":"test_table2","new_name":"test_drop_table"}'
 /// ```
+///
+/// Renames a table in the database.
+///
+/// ## Parameters
+///
+/// - `current_name`: The current name of the table to be renamed.
+/// - `new_name`: The new name of the table.
+///
+/// ## Returns
+///
+/// Returns a success message if the table is renamed successfully.
+///
+/// ## Errors
+///
+/// - Returns an error if the table does not exist.
 async fn rename_table(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RenameTableRequest>
@@ -294,8 +337,27 @@ async fn rename_table(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/insert_column -H '{"table_name":"test_table","key":"test_key","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
+/// curl -X POST http://localhost:3000/insert_column -H "Content-Type: application/json" -d '{"table_name":"test_table","key":"test_key","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
 /// ```
+///
+/// Inserts a new column into a table in the database.
+///
+/// ## Parameters
+///
+/// - `table_name`: The name of the table into which the column is to be inserted.
+/// - `key`: The name of the column to be inserted.
+/// - `primary_key`: Whether the column is a primary key.
+/// - `non_null`: Whether the column is non-null.
+/// - `unique`: Whether the column is unique.
+/// - `foreign_key`: The foreign key constraint for the column.
+///
+/// ## Returns
+///
+/// Returns a JSON object representing the newly inserted column.
+///
+/// ## Errors
+///
+/// - Returns an error if the table does not exist.
 async fn insert_column(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<InsertColumnRequest>
@@ -332,20 +394,29 @@ async fn insert_column(
 }
 
 
+
 /// Handler to create a new table with specified columns
 ///
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/create_table -H '{"name":"test_create_table", "insert_column_requests":[{"table_name":"test_create_table", "key":"test_create_key", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null},{"table_name":"test_create_table", "key":"test_create_key2", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null}]}'
+/// curl -X POST http://localhost:3000/create_table -H "Content-Type: application/json" -d '{"name":"test_table2","insert_column_requests":[{"table_name":"test_table","key":"test_key3","primary_key":true,"non_null":false,"unique":true,"foreign_key":null}]}'
 /// ```
-/// Handler to create a new table with specified columns
 ///
-/// # Example
+/// Creates a new table with specified columns in the database.
 ///
-/// ```
-/// curl -X POST http://localhost:3000/create_table -H '{"name":"test_create_table", "insert_column_requests":[{"table_name":"test_create_table", "key":"test_create_key", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null},{"table_name":"test_create_table", "key":"test_create_key2", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null}]}'
-/// ```
+/// ## Parameters
+///
+/// - `name`: The name of the table to be created.
+/// - `insert_column_requests`: A list of column insertion requests.
+///
+/// ## Returns
+///
+/// Returns a JSON object representing the newly created table.
+///
+/// ## Errors
+///
+/// - Returns an error if a table with the same name already exists.
 async fn create_table(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<CreateTableRequests>
@@ -397,9 +468,23 @@ async fn create_table(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/insert_row -H '{"table_name":"test_table","row":["test_value","test_value2"]}'
+/// curl -X POST http://localhost:3000/insert_row -H "Content-Type: application/json" -d '{"table_name":"test_table","row":{"values":[{"Str":"test_value"},{"Int":13}]}}'
 /// ```
-// Modify the return type to `impl IntoResponse`
+///
+/// Inserts a new row into a table in the database.
+///
+/// ## Parameters
+///
+/// - `table_name`: The name of the table into which the row is to be inserted.
+/// - `row`: The row to be inserted.
+///
+/// ## Returns
+///
+/// Returns a JSON object representing the newly inserted row.
+///
+/// ## Errors
+///
+/// - Returns an error if the table does not exist.
 async fn insert_row(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<InsertRowRequest>
@@ -464,7 +549,7 @@ async fn insert_row(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/select -H '{"table_name":"test_table", "columns":["column1", "column2"], "condition":{"column":"column1", "value":"some_value"}}'
+/// curl -X POST http://localhost:3000/select -H "Content-Type: application/json" -d '{"table_name":"test_table","columns":["test_key","test_key3"],"condition":{"column":"test_key","value":"true"}}'
 /// ```
 ///
 /// Retrieves rows from the specified table (`table_name`) optionally filtered by columns (`columns`) and a conditional (`condition`).
@@ -572,7 +657,7 @@ async fn select_rows(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/update_table -H '{"table_name":"test_table", "condition":{"column":"column1", "value":"some_value"}, "updates":[{"column":"column2", "value":"new_value"}]}'
+/// curl -X POST http://localhost:3000/update_table -H "Content-Type: application/json" -d '{"table_name":"test_table","condition":{"column":"test_key","value":"true"},"updates":[{"column":"test_key3","value":"updated_value"},{"column":"test_key2","value":"17.78"}]}'
 /// ```
 ///
 /// Updates rows in the specified table (`table_name`) optionally filtered by a condition (`condition`).

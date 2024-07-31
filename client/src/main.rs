@@ -8,36 +8,40 @@ use core::value::Value;
 
 /// This main function demonstrates the usage of various client functions with example values.
 ///
-/// # Examples
+/// The following client functions are demonstrated:
 ///
+/// - `drop_table`: Drops a table from the database.
+/// - `create`: Creates a new table in the database.
+/// - `insert_column`: Inserts a new column into an existing table.
+/// - `insert_row`: Inserts a new row into an existing table.
+/// - `select`: Selects rows from a table based on a condition.
+/// - `update_table`: Updates rows in a table based on a condition.
+///
+/// The example values used in this function are:
+///
+/// - `test_table`: The name of the table to be created, dropped, and updated.
+/// - `test_key`, `test_key2`, `test_key3`: The names of the columns to be inserted into the table.
+/// - `test_value`, `test_value_3`: The values to be inserted into the table.
+/// - `13`, `27.55`, `128`, `17.78`: The values to be inserted into the table.
+///
+/// The following curl commands do exactly the same as the rust code in this function
 /// ```sh
-/// # Create a table
-/// curl -X POST http://localhost:3000/create -H '{"name":"test_table"}'
-///
-/// # Drop the table
-/// curl -X POST http://localhost:3000/drop_table -H '{"name":"test_table"}'
-///
-/// # Create another table
-/// curl -X POST http://localhost:3000/create -H '{"name":"test_table again"}'
-///
-/// # Rename the table name
-/// curl -X POST http://localhost:3000/rename_table -H '{"current_name":"test_table again","new_name":"test_table"}'
-///
-/// # Insert columns
-/// curl -X POST http://localhost:3000/insert_column -H '{"table_name":"test_table","key":"test_key","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
-/// curl -X POST http://localhost:3000/insert_column -H '{"table_name":"test_table","key":"test_key2","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
-///
-/// # Insert a row
-/// curl -X POST http://localhost:3000/insert_row -H '{"table_name":"test_table","row":["test_value","test_value2"]}'
-///
-/// # Create a table with columns
-/// curl -X POST http://localhost:3000/create_table -H '{"name":"test_create_table", "insert_column_requests":[{"table_name":"test_create_table", "key":"test_create_key", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null},{"table_name":"test_create_table", "key":"test_create_key2", "primary_key":true, "non_null":true, "unique":true, "foreign_key":null}]}'
-///
-/// # Insert a row into the newly created table
-/// curl -X POST http://localhost:3000/insert_row -H '{"table_name":"test_create_table","row":["test_create_value","test_create_value2"]}'
-///
-/// # Select from a table
-/// curl -X POST http://localhost:3000/select -H '{"table_name":"test_table","columns":["test_key", "test_key2"]}'
+/// curl -X POST http://localhost:3000/drop_table -H "Content-Type: application/json" -d '{"name":"test_table"}'
+/// curl -X POST http://localhost:3000/drop_table -H "Content-Type: application/json" -d '{"name":"test_table2"}'
+/// curl -X POST http://localhost:3000/drop_table -H "Content-Type: application/json" -d '{"name":"test_drop_table"}'
+/// curl -X POST http://localhost:3000/create -H "Content-Type: application/json" -d '{"name":"test_table"}'
+/// curl -X POST http://localhost:3000/insert_column -H "Content-Type: application/json" -d '{"table_name":"test_table","key":"test_key","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
+/// curl -X POST http://localhost:3000/insert_column -H "Content-Type: application/json" -d '{"table_name":"test_table","key":"test_key2","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
+/// curl -X POST http://localhost:3000/insert_column -H "Content-Type: application/json" -d '{"table_name":"test_table","key":"test_key3","primary_key":true,"non_null":false,"unique":true,"foreign_key":null}'
+/// curl -X POST http://localhost:3000/create_table -H "Content-Type: application/json" -d '{"name":"test_table2","insert_column_requests":[{"table_name":"test_table","key":"test_key3","primary_key":true,"non_null":false,"unique":true,"foreign_key":null}]}'
+/// curl -X POST http://localhost:3000/rename_table -H "Content-Type: application/json" -d '{"current_name":"test_table2","new_name":"test_drop_table"}'
+/// curl -X POST http://localhost:3000/drop_table -H "Content-Type: application/json" -d '{"name":"test_drop_table"}'
+/// curl -X POST http://localhost:3000/insert_row -H "Content-Type: application/json" -d '{"table_name":"test_table","row":{"values":[{"Str":"test_value"},{"Int":13}]}}'
+/// curl -X POST http://localhost:3000/insert_row -H "Content-Type: application/json" -d '{"table_name":"test_table","row":{"values":[{"Bool":true},{"Float":27.55},{"Int":128}]}}'
+/// curl -X POST http://localhost:3000/insert_row -H "Content-Type: application/json" -d '{"table_name":"test_table","row":{"values":[{"Str":"test_value_3"},{"Float":17.78}]}}'
+/// curl -X POST http://localhost:3000/select -H "Content-Type: application/json" -d '{"table_name":"test_table","columns":["test_key","test_key3"],"condition":null}'
+/// curl -X POST http://localhost:3000/select -H "Content-Type: application/json" -d '{"table_name":"test_table","columns":["test_key","test_key3"],"condition":{"column":"test_key","value":"true"}}'
+/// curl -X POST http://localhost:3000/update_table -H "Content-Type: application/json" -d '{"table_name":"test_table","condition":{"column":"test_key","value":"true"},"updates":[{"column":"test_key3","value":"updated_value"},{"column":"test_key2","value":"17.78"}]}'
 /// ```
 #[tokio::main]
 async fn main() {
