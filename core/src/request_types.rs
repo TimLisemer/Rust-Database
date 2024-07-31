@@ -60,6 +60,7 @@ pub struct InsertRowRequest {
     pub row: Row,
 }
 
+/// Represents a request to select a new row off a table.
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SelectRequest {
     pub columns: Option<Vec<String>>,  // None means SELECT *
@@ -67,8 +68,24 @@ pub struct SelectRequest {
     pub condition: Option<Condition>,
 }
 
+/// Condition for Select statements to specify what Column should be selected
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Condition {
+    pub column: String,
+    pub value: String,
+}
+
+/// Represents an update to Row(s) of a table
+#[derive(Deserialize, Serialize, Debug)]
+pub struct UpdateRequest {
+    pub table_name: String,
+    pub condition: Option<Condition>,
+    pub updates: Vec<UpdateColumnRequest>,
+}
+
+/// Specification what columns should be updated with what
+#[derive(Deserialize, Serialize, Debug)]
+pub struct UpdateColumnRequest {
     pub column: String,
     pub value: String,
 }

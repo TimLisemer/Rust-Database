@@ -13,11 +13,12 @@ use tokio::sync::Mutex;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt, BufReader};
 use core::{
+    row::Row,
     table::Table,
     column::Column,
     request_types::{
         CreateRequests, CreateTableRequests, DropTableRequest,
-        UpdateTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest
+        UpdateTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, Condition
     },
 };
 
@@ -39,7 +40,8 @@ async fn main() {
         .route("/create", post(create))
         .route("/create_table", post(create_table))
         .route("/drop_table", post(drop_table))
-        .route("/update_table", post(update_table))
+        .route("/rename_table", post(rename_table))
+        //.route("/update_table", post(update_table))
         .route("/insert_column", post(insert_column))
         .route("/insert_row", post(insert_row))
         .route("/select", post(select))
@@ -254,9 +256,9 @@ async fn drop_table(
 /// # Example
 ///
 /// ```
-/// curl -X POST http://localhost:3000/update_table -H '{"current_name":"test_table again","new_name":"test_table"}'
+/// curl -X POST http://localhost:3000/rename_table -H '{"current_name":"test_table again","new_name":"test_table"}'
 /// ```
-async fn update_table(
+async fn rename_table(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<UpdateTableRequest>
 ) -> Response {
@@ -491,39 +493,76 @@ async fn select(
     Json(payload): Json<SelectRequest>
 ) -> Response {
     if let Some(table) = state.get(payload.table_name.as_str()).await {
-        let selected_columns = match payload.columns {
-            Some(cols) => cols,
-            None => table.columns.iter().map(|col| col.key.clone()).collect(), // SELECT *
-        };
+        let rows = select_rows(&table, payload.columns, payload.condition.as_ref()).await;
 
-        let mut rows = vec![];
-
-        for row in &table.rows {
-            if let Some(cond) = &payload.condition {
-                if let Some(col_index) = table.columns.iter().position(|col| col.key == cond.column) {
-                    if row.values[col_index].as_string().unwrap_or_default() != cond.value {
-                        continue;
-                    }
-                } else {
-                    let error = format!("Column '{}' not found", cond.column);
-                    error!("{}", error);
-                    return (StatusCode::BAD_REQUEST, Json(error)).into_response();
-                }
+        match rows {
+            Ok(rows) => (StatusCode::OK, Json(rows)).into_response(),
+            Err(error) => {
+                error!("{}", error);
+                (StatusCode::BAD_REQUEST, Json(error)).into_response()
             }
-
-            let selected_values = selected_columns.iter().filter_map(|col_key| {
-                table.columns.iter().position(|col| col.key.eq(col_key)).map(|index| row.values[index].as_string().unwrap_or_default())
-            }).collect::<Vec<String>>();
-
-            rows.push(selected_values);
         }
-
-        (StatusCode::OK, Json(rows)).into_response()
     } else {
         let error = format!("Table '{}' does not exist", payload.table_name);
         error!("{}", error);
         (StatusCode::NOT_FOUND, Json(error)).into_response()
     }
+}
+
+/// Helper function to select rows from a table based on specified conditions
+/// ## Parameters
+///
+/// - `table_name`: Name of the table from which rows are selected.
+/// - `columns`: Optional. List of columns to select. If not provided, all columns are selected.
+/// - `condition`: Optional. Specifies a condition to filter rows. Only rows matching this condition are returned.
+///
+/// ## Returns
+///
+/// Returns a JSON array of rows, where each row is represented as an array of strings (values of selected columns).
+///
+/// ## Errors
+///
+/// - Returns an error if the specified `table_name` does not exist in the application state.
+/// - Returns an error if the specified `condition.column` does not exist in the table.
+async fn select_rows(
+    table: &Table,
+    columns: Option<Vec<String>>,
+    condition: Option<&Condition>,
+) -> Result<Vec<Row>, String> {
+    let mut rows = vec![];
+
+    for row in &table.rows {
+        if let Some(cond) = condition {
+            if let Some(col_index) = table.columns.iter().position(|col| col.key == cond.column) {
+                if row.values[col_index].as_string().unwrap_or_default()!= cond.value {
+                    continue;
+                }
+            } else {
+                return Err(format!("Column '{}' not found", cond.column));
+            }
+        }
+
+        let mut selected_row = Row::new(vec![]);
+
+        if let Some(ref cols) = columns {
+            for col in cols {
+                if let Some(col_index) = table.columns.iter().position(|c| c.key == *col) {
+                    selected_row.add_value(row.values[col_index].clone());
+                } else {
+                    return Err(format!("Column '{}' not found", col));
+                }
+            }
+        } else {
+            // SELECT *
+            for value in &row.values {
+                selected_row.add_value(value.clone());
+            }
+        }
+
+        rows.push(selected_row);
+    }
+
+    Ok(rows)
 }
 
 
