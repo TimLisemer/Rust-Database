@@ -1,35 +1,30 @@
 //! # Core Module Documentation
 //!
-//! This module contains the core structures and types used in the project.
+//! This module provides the fundamental building blocks for database operations,
+//! including data structures and functions for tables, columns, rows, and values.
 //!
-//! ## Modules
+//! ## Database Functionality
 //!
-//! - [`client_functions`](client_functions): Client Functions to interact with the server's API.
+//! The following modules are used by both the server and client to provide database functionality:
+//!
 //! - [`table`](table): Defines the `Table` structure representing a database table.
 //! - [`column`](crate::column): Defines the `Column` structure representing a column in a table.
 //! - [`request_types`](request_types): Defines various request types used in interacting with tables.
 //! - [`value`](value): Defines the `Value` structure representing a value in a table.
 //! - [`row`](row): Defines the `Row` structure representing a row in a table.
 //!
-//! Each module encapsulates related functionality and data structures essential for database operations.
+//! These modules encapsulate related functionality and data structures essential for database operations.
 //!
-//! ## Example Usage
+//! ## Client-Side Functionality
 //!
-//! ```
-//! // Example demonstrating table creation
-//! use core::table::Table;
-//! use core::column::Column;
+//! The following module provides functions for building a client to interact with the server's API:
 //!
-//! let mut table = Table::new("users".to_string());
-//! let column = Column::new("id".to_string(), true, true, true, None);
-//! table.add_column(column);
+//! - [`client_functions`](client_functions): Client Functions to interact with the server's API.
 //!
-//! println!("Created table: {:?}", table);
-//! ```
 //!
-//! This module serves as the foundational layer for database operations, providing essential structures
-//! for defining tables, columns, rows, and their interactions.
+//! ## Examples
 //!
+//! For examples of using the client_functions, see the documentation of the client_functions module.
 
 pub mod table;
 pub mod column;
