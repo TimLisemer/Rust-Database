@@ -24,7 +24,7 @@
 //! use reqwest::Client;
 //!
 //! use client::{create, create_table, drop_table, insert_column, insert_row, update_table, select};
-//! use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, UpdateTableRequest};
+//! use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, UpdateTableRequest, Condition};
 //! use core::row::Row;
 //! use core::value::Value;
 //!
@@ -118,6 +118,27 @@
 //!         table_name: "test_table".to_string(),
 //!         columns: Option::from(vec!["test_key".to_string(), "test_key3".to_string()]),
 //!         condition: None, // Add conditions if needed
+//!     };
+//!
+//!     select(&client, &select_request).await.unwrap();
+//!
+//!     // Select from the table without a condition
+//!     let select_request = SelectRequest {
+//!         table_name: "test_table".to_string(),
+//!         columns: Option::from(vec!["test_key".to_string(), "test_key3".to_string()]), // Empty vec would mean *
+//!         condition: None, // Add conditions if needed
+//!     };
+//!
+//!     select(&client, &select_request).await.unwrap();
+//!
+//!     // Select from the table with a condition
+//!     let select_request = SelectRequest {
+//!         table_name: "test_table".to_string(),
+//!         columns: Option::from(vec!["test_key".to_string(), "test_key3".to_string()]), // Empty vec would mean *
+//!         condition: Option::from(Condition {
+//!             column: "test_key".to_string(),
+//!             value: "true".to_string(),
+//!         }),
 //!     };
 //!
 //!     select(&client, &select_request).await.unwrap();
