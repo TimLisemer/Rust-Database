@@ -14,11 +14,12 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt, BufReader};
 use core::{
     row::Row,
+    value::Value,
     table::Table,
     column::Column,
     request_types::{
-        CreateRequests, CreateTableRequests, DropTableRequest,
-        UpdateTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, Condition
+        CreateRequests, CreateTableRequests, DropTableRequest, UpdateRequest,
+        RenameTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, Condition
     },
 };
 
@@ -41,7 +42,7 @@ async fn main() {
         .route("/create_table", post(create_table))
         .route("/drop_table", post(drop_table))
         .route("/rename_table", post(rename_table))
-        //.route("/update_table", post(update_table))
+        .route("/update_table", post(update_table))
         .route("/insert_column", post(insert_column))
         .route("/insert_row", post(insert_row))
         .route("/select", post(select))
@@ -251,7 +252,7 @@ async fn drop_table(
 }
 
 
-/// Handler to update a table's name
+/// Handler to rename a table's name
 ///
 /// # Example
 ///
@@ -260,7 +261,7 @@ async fn drop_table(
 /// ```
 async fn rename_table(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<UpdateTableRequest>
+    Json(payload): Json<RenameTableRequest>
 ) -> Response {
     let current_name = payload.current_name;
     let new_name = payload.new_name;
@@ -271,8 +272,8 @@ async fn rename_table(
         state.create(table.clone()).await;
         match state.save().await {
             Ok(_) => {
-                info!("Updated table name from '{}' to '{}'", current_name, table.name);
-                (StatusCode::OK, Json(format!("Updated table name from '{}' to '{}'", current_name, table.name))).into_response()
+                info!("Rename table name from '{}' to '{}'", current_name, table.name);
+                (StatusCode::OK, Json(format!("Renamed table name from '{}' to '{}'", current_name, table.name))).into_response()
             }
             Err(err) => {
                 let error = format!("Failed to save state: {}", err);
@@ -562,7 +563,103 @@ async fn select_rows(
         rows.push(selected_row);
     }
 
+    info!("Selected Rows: {:?}", rows);
     Ok(rows)
+}
+
+/// Handler to update rows in a table based on specified conditions
+///
+/// # Example
+///
+/// ```
+/// curl -X POST http://localhost:3000/update_table -H '{"table_name":"test_table", "condition":{"column":"column1", "value":"some_value"}, "updates":[{"column":"column2", "value":"new_value"}]}'
+/// ```
+///
+/// Updates rows in the specified table (`table_name`) optionally filtered by a condition (`condition`).
+///
+/// ## Parameters
+///
+/// - `table_name`: Name of the table from which rows are updated.
+/// - `condition`: Optional. Specifies a condition to filter rows. Only rows matching this condition are updated.
+/// - `updates`: List of updates to apply to the filtered rows. Each update specifies a column and a new value.
+///
+/// ## Returns
+///
+/// Returns a success message if the update is successful.
+///
+/// ## Errors
+///
+/// - Returns an error if the specified `table_name` does not exist in the application state.
+/// - Returns an error if the specified `condition.column` does not exist in the table.
+/// - Returns an error if any of the `updates` specify a column that does not exist in the table.
+///
+/// ## Notes
+///
+/// - This handler supports flexible row filtering based on conditions and updates multiple columns at once.
+async fn update_table(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<UpdateRequest>
+) -> Response {
+    if let Some(mut table) = state.get(payload.table_name.as_str()).await {
+        // Fetch rows that match the condition
+        let rows = select_rows(&table, None, payload.condition.as_ref()).await;
+
+        match rows {
+            Ok(mut selected_rows) => {
+                // Update logic for rows that match the condition
+                for row in &mut selected_rows {
+                    for update in &payload.updates {
+                        if let Some(col_index) = table.columns.iter().position(|col| col.key == update.column) {
+                            row.values[col_index] = Value::from(update.value.clone());
+                        } else {
+                            let error = format!("Column '{}' not found", update.column);
+                            error!("{}", error);
+                            return (StatusCode::BAD_REQUEST, Json(error)).into_response();
+                        }
+                    }
+                }
+
+                // Apply the updates back to the original table rows
+                for row in &mut table.rows {
+                    if let Some(condition) = &payload.condition {
+                        if let Some(col_index) = table.columns.iter().position(|col| col.key == condition.column) {
+                            if row.values[col_index].as_string().unwrap_or_default() == condition.value {
+                                for update in &payload.updates {
+                                    if let Some(update_col_index) = table.columns.iter().position(|col| col.key == update.column) {
+                                        row.values[update_col_index] = Value::from(update.value.clone());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Drop the current table
+                state.drop_table(&*payload.table_name.clone()).await;
+
+                // Create the updated table
+                let updated_table = Table {
+                    name: payload.table_name.clone(),
+                    columns: table.columns.clone(),
+                    rows: table.rows.clone(),
+                };
+
+                // Create the updated table in the state
+                state.create(updated_table).await;
+
+                info!("Updated Rows: {:?}", selected_rows);
+                (StatusCode::OK, Json("Rows updated successfully")).into_response()
+            }
+            Err(error) => {
+                error!("{}", error);
+                (StatusCode::BAD_REQUEST, Json(error)).into_response()
+            }
+        }
+    } else {
+        let error = format!("Table '{}' does not exist", payload.table_name);
+        error!("{}", error);
+        (StatusCode::NOT_FOUND, Json(error)).into_response()
+    }
 }
 
 

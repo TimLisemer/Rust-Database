@@ -35,9 +35,9 @@ pub struct DropTableRequest {
     pub name: String,
 }
 
-/// Represents a request to update a table's name.
+/// Represents a request to rename a table's name.
 #[derive(Deserialize, Serialize, Debug)]
-pub struct UpdateTableRequest {
+pub struct RenameTableRequest {
     pub current_name: String,
     pub new_name: String,
 }

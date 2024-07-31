@@ -23,8 +23,8 @@
 //! use log::LevelFilter;
 //! use reqwest::Client;
 //!
-//! use client::{create, create_table, drop_table, insert_column, insert_row, update_table, select};
-//! use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, UpdateTableRequest, Condition};
+//! use client::{create, create_table, drop_table, insert_column, insert_row, rename_table, select};
+//! use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, RenameTableRequest, Condition};
 //! use core::row::Row;
 //! use core::value::Value;
 //!
@@ -83,7 +83,7 @@
 //!         insert_column_requests: vec![insert_column_request3],
 //!     }).await.unwrap();
 //!
-//!     update_table(&client, &UpdateTableRequest { current_name: "test_table2".to_string(), new_name: "test_drop_table".to_string() }).await.unwrap();
+//!     rename_table(&client, &RenameTableRequest { current_name: "test_table2".to_string(), new_name: "test_drop_table".to_string() }).await.unwrap();
 //!
 //!     // Drop the table
 //!     drop_table(&client, &DropTableRequest { name: "test_drop_table".to_string() }).await.unwrap();
@@ -150,7 +150,7 @@
 pub mod functions;
 
 pub use crate::functions::{
-    create, create_table, drop_table, update_table, insert_column, insert_row, select
+    create, create_table, drop_table, rename_table, insert_column, insert_row, select
 };
 
 

@@ -2,7 +2,7 @@ use log::LevelFilter;
 use reqwest::Client;
 
 use client::functions::*;
-use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, UpdateTableRequest, Condition};
+use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, RenameTableRequest, Condition, UpdateRequest, UpdateColumnRequest};
 use core::row::Row;
 use core::value::Value;
 
@@ -20,8 +20,8 @@ use core::value::Value;
 /// # Create another table
 /// curl -X POST http://localhost:3000/create -H '{"name":"test_table again"}'
 ///
-/// # Update the table name
-/// curl -X POST http://localhost:3000/update_table -H '{"current_name":"test_table again","new_name":"test_table"}'
+/// # Rename the table name
+/// curl -X POST http://localhost:3000/rename_table -H '{"current_name":"test_table again","new_name":"test_table"}'
 ///
 /// # Insert columns
 /// curl -X POST http://localhost:3000/insert_column -H '{"table_name":"test_table","key":"test_key","primary_key":true,"non_null":true,"unique":true,"foreign_key":null}'
@@ -95,10 +95,10 @@ async fn main() {
         insert_column_requests: vec![insert_column_request3],
     }).await.unwrap();
 
-    // update_table(&client, &UpdateTableRequest { current_name: "test_table2".to_string(), new_name: "test_drop_table".to_string() }).await.unwrap();
+    rename_table(&client, &RenameTableRequest { current_name: "test_table2".to_string(), new_name: "test_drop_table".to_string() }).await.unwrap();
 
     // Drop the table
-    // drop_table(&client, &DropTableRequest { name: "test_drop_table".to_string() }).await.unwrap();
+    drop_table(&client, &DropTableRequest { name: "test_drop_table".to_string() }).await.unwrap();
 
     // Insert a row
     let insert_row_request = InsertRowRequest {
@@ -145,5 +145,27 @@ async fn main() {
     };
 
     select(&client, &select_request).await.unwrap();
+
+
+    // Update rows in the table
+    let update_request = UpdateRequest {
+        table_name: "test_table".to_string(),
+        condition: Option::from(Condition {
+            column: "test_key".to_string(),
+            value: "true".to_string(),
+        }),
+        updates: vec![
+            UpdateColumnRequest {
+                column: "test_key3".to_string(),
+                value: "updated_value".to_string(),
+            },
+            UpdateColumnRequest {
+                column: "test_key2".to_string(),
+                value: "17.78".to_string(),
+            },
+        ],
+    };
+
+    update_table(&client, &update_request).await.unwrap();
 
 }

@@ -3,7 +3,7 @@ use log::{debug, error, info};
 use std::error;
 use reqwest::{Client};
 use serde_json::json;
-use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, UpdateTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest};
+use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, RenameTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, UpdateRequest};
 
 /// Creates a new table on the server.
 ///
@@ -152,49 +152,49 @@ pub async fn drop_table(client: &Client, drop_table_request: &DropTableRequest) 
     Ok(())
 }
 
-/// Updates a table's name on the server.
+/// Renames a table's name on the server.
 ///
 /// # Arguments
 ///
 /// * `client` - A reference to the HTTP client.
-/// * `update_table_request` - The request object containing the current and new names of the table.
+/// * `rename_table_request` - The request object containing the current and new names of the table.
 ///
 /// # Examples
 ///
 /// ```
 /// # #[cfg(feature = "doc_examples")] {
 /// # use reqwest::Client;
-/// # use core::request_types::UpdateTableRequest;
-/// # async fn example(client: &Client, update_table_request: &UpdateTableRequest) -> Result<(), Box<dyn error::Error>> {
-/// let url = format!("http://localhost:3000/update_table");
+/// # use core::request_types::RenameTableRequest;
+/// # async fn example(client: &Client, rename_table_request: &RenameTableRequest) -> Result<(), Box<dyn error::Error>> {
+/// let url = format!("http://localhost:3000/rename_table");
 ///
 /// let resp = client.post(&url)
-///     .json(update_table_request)
+///     .json(rename_table_request)
 ///     .send()
 ///     .await?;
 ///
-/// println!("Update Table Response: {:?}", resp);
+/// println!("Rename Table Response: {:?}", resp);
 /// # Ok(())
 /// # }
 /// # }
 /// ```
-pub async fn update_table(client: &Client, update_table_request: &UpdateTableRequest) -> Result<(), Box<dyn error::Error>> {
-    let url = "http://localhost:3000/update_table".to_string();
+pub async fn rename_table(client: &Client, rename_table_request: &RenameTableRequest) -> Result<(), Box<dyn error::Error>> {
+    let url = "http://localhost:3000/rename_table".to_string();
 
     let resp = client.post(&url)
-        .json(update_table_request)
+        .json(rename_table_request)
         .send()
         .await?;
 
     match resp.status().is_success() {
         true => {
-            debug!("Update Table Response: {:?}", resp);
-            info!("Updated Table {:?}", update_table_request);
+            debug!("Rename Table Response: {:?}", resp);
+            info!("Renamed Table {:?}", rename_table_request);
             Ok(())
         }
         false => {
-            error!("Update Table Response: {:?}", resp);
-            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to update table")))
+            error!("Rename Table Response: {:?}", resp);
+            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to rename table")))
         }
     }
 }
@@ -332,17 +332,67 @@ pub async fn select(client: &Client, select_request: &SelectRequest) -> Result<(
 
     // Extract the status code before consuming `resp`
     let status = resp.status();
-
     // Get the response body
     let body = resp.text().await?;
+    match status.is_success() {
+        true => {
+            debug!("Select Response: {}", body); // Log the body content
+            info!("Select result from 'test_create_table': {}", body);
+            Ok(())
+        }
+        false => {
+            error!("Select Response: {}", body); // Log the body content
+            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to select")))
+        }
+    }
+}
 
-    if status.is_success() {
-        debug!("Select Response: {}", body); // Log the body content
-        info!("Select result from 'test_create_table': {}", body);
-        Ok(())
-    } else {
-        error!("Select Response: {}", body); // Log the body content
-        Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to select")))
+
+
+/// Updates rows in a table on the server based on specified conditions.
+///
+/// # Arguments
+///
+/// * `client` - A reference to the HTTP client.
+/// * `update_request` - The request object containing the table name, condition, and updates.
+///
+/// # Examples
+///
+/// ```
+/// # #[cfg(feature = "doc_examples")] {
+/// # use reqwest::Client;
+/// # use core::request_types::UpdateRequest;
+/// # async fn example(client: &Client, update_request: &UpdateRequest) -> Result<(), Box<dyn error::Error>> {
+/// let url = format!("http://localhost:3000/update_table");
+///
+/// let resp = client.post(&url)
+///    .json(update_request)
+///    .send()
+///    .await?;
+///
+/// println!("Update Table Response: {:?}", resp);
+/// # Ok(())
+/// # }
+/// # }
+/// ```
+pub async fn update_table(client: &Client, update_request: &UpdateRequest) -> Result<(), Box<dyn error::Error>> {
+    let url = "http://localhost:3000/update_table".to_string();
+
+    let resp = client.post(&url)
+        .json(update_request)
+        .send()
+        .await?;
+
+    match resp.status().is_success() {
+        true => {
+            debug!("Update Table Response: {:?}", resp);
+            info!("Updated Table {:?}", update_request.table_name);
+            Ok(())
+        }
+        false => {
+            error!("Update Table Response: {:?}", resp);
+            Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Failed to update table")))
+        }
     }
 }
 
