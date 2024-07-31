@@ -4,6 +4,7 @@
 //!
 //! ## Modules
 //!
+//! - [`client_functions`](client_functions): Client Functions to interact with the server's API.
 //! - [`table`](table): Defines the `Table` structure representing a database table.
 //! - [`column`](crate::column): Defines the `Column` structure representing a column in a table.
 //! - [`request_types`](request_types): Defines various request types used in interacting with tables.
@@ -35,3 +36,7 @@ pub mod column;
 pub mod request_types;
 pub mod value;
 pub mod row;
+pub mod client_functions;
+
+#[cfg(feature = "doc_examples")]
+extern crate reqwest;

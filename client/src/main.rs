@@ -1,7 +1,7 @@
 use log::LevelFilter;
 use reqwest::Client;
 
-use client::functions::*;
+use core::client_functions::*;
 use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, RenameTableRequest, Condition, UpdateRequest, UpdateColumnRequest};
 use core::row::Row;
 use core::value::Value;

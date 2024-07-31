@@ -1,9 +1,9 @@
-//! Functions to interact with the server's API.
+//! Client Functions to interact with the server's API.
 use log::{debug, error, info};
 use std::error;
 use reqwest::{Client};
 use serde_json::json;
-use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, RenameTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, UpdateRequest};
+use crate::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, RenameTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, UpdateRequest};
 
 /// Creates a new table on the server.
 ///
@@ -15,25 +15,24 @@ use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest,
 /// # Examples
 ///
 /// ```
-/// # #[cfg(feature = "doc_examples")] {
-/// # use reqwest::Client;
-/// # use serde_json::json;
-/// # use core::request_types::CreateRequests;
-/// # async fn example(client: &Client, create_table_request: &CreateRequests) -> Result<(), Box<dyn error::Error>> {
-/// let url = format!("http://localhost:3000/create");
-/// let body = json!({
-///     "name": create_table_request.name,
-/// });
+/// use log::LevelFilter;
+/// use reqwest::Client;
+/// use core::request_types::{CreateRequests};
+/// use core::client_functions::create;
 ///
-/// let resp = client.post(&url)
-///     .json(&body)
-///     .send()
-///     .await?;
+/// #[tokio::main]
+/// async fn main() {
 ///
-/// println!("Create Table Response: {:?}", resp);
-/// # Ok(())
-/// # }
-/// # }
+///     env_logger::builder()
+///         .filter_level(LevelFilter::Info)
+///         .format_timestamp_millis()
+///         .init();
+///
+///     let client = Client::new();
+///
+///     let create_request = CreateRequests { name: "test_table".to_string() };
+///     create(&client, &create_request).await.unwrap();
+/// }
 /// ```
 pub async fn create(client: &Client, create_table_request: &CreateRequests) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/create".to_string();
@@ -69,21 +68,36 @@ pub async fn create(client: &Client, create_table_request: &CreateRequests) -> R
 /// # Examples
 ///
 /// ```
-/// # #[cfg(feature = "doc_examples")] {
-/// # use reqwest::Client;
-/// # use core::request_types::CreateTableRequests;
-/// # async fn example(client: &Client, create_table_request: &CreateTableRequests) -> Result<(), Box<dyn error::Error>> {
-/// let url = format!("http://localhost:3000/create_table");
+/// use log::LevelFilter;
+/// use reqwest::Client;
+/// use core::request_types::{CreateTableRequests, InsertColumnRequest};
+/// use core::client_functions::create_table;
 ///
-/// let resp = client.post(&url)
-///     .json(create_table_request)
-///     .send()
-///     .await?;
+/// #[tokio::main]
+/// async fn main() {
 ///
-/// println!("Create Table Response: {:?}", resp);
-/// # Ok(())
-/// # }
-/// # }
+///     env_logger::builder()
+///         .filter_level(LevelFilter::Info)
+///         .format_timestamp_millis()
+///         .init();
+///
+///     let client = Client::new();
+/// // Insert columns
+///     let insert_column_request = InsertColumnRequest {
+///         table_name: "test_table".to_string(),
+///         key: "test_key".to_string(),
+///         primary_key: true,
+///         non_null: true,
+///         unique: true,
+///         foreign_key: None,
+///     };
+///
+/// // Create new table to be dropped
+///     create_table(&client, &CreateTableRequests {
+///        name: "test_table2".to_string(),
+///         insert_column_requests: vec![insert_column_request],
+///     }).await.unwrap();
+/// }
 /// ```
 pub async fn create_table(client: &Client, create_table_request: &CreateTableRequests) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/create_table".to_string();
@@ -116,21 +130,24 @@ pub async fn create_table(client: &Client, create_table_request: &CreateTableReq
 /// # Examples
 ///
 /// ```
-/// # #[cfg(feature = "doc_examples")] {
-/// # use reqwest::Client;
-/// # use core::request_types::DropTableRequest;
-/// # async fn example(client: &Client, drop_table_request: &DropTableRequest) -> Result<(), Box<dyn error::Error>> {
-/// let url = format!("http://localhost:3000/drop_table");
+/// use log::LevelFilter;
+/// use reqwest::Client;
+/// use core::request_types::{DropTableRequest};
+/// use core::client_functions::drop_table;
 ///
-/// let resp = client.post(&url)
-///     .json(drop_table_request)
-///     .send()
-///     .await?;
+/// #[tokio::main]
+/// async fn main() {
 ///
-/// println!("Drop Table Response: {:?}", resp);
-/// # Ok(())
-/// # }
-/// # }
+///     env_logger::builder()
+///         .filter_level(LevelFilter::Info)
+///         .format_timestamp_millis()
+///         .init();
+///
+///     let client = Client::new();
+///
+///     let drop_table_request = DropTableRequest { name: "test_table".to_string() };
+///     drop_table(&client, &drop_table_request).await.unwrap();
+/// }
 /// ```
 pub async fn drop_table(client: &Client, drop_table_request: &DropTableRequest) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/drop_table".to_string();
@@ -162,21 +179,24 @@ pub async fn drop_table(client: &Client, drop_table_request: &DropTableRequest) 
 /// # Examples
 ///
 /// ```
-/// # #[cfg(feature = "doc_examples")] {
-/// # use reqwest::Client;
-/// # use core::request_types::RenameTableRequest;
-/// # async fn example(client: &Client, rename_table_request: &RenameTableRequest) -> Result<(), Box<dyn error::Error>> {
-/// let url = format!("http://localhost:3000/rename_table");
+/// use log::LevelFilter;
+/// use reqwest::Client;
+/// use core::request_types::{RenameTableRequest};
+/// use core::client_functions::rename_table;
 ///
-/// let resp = client.post(&url)
-///     .json(rename_table_request)
-///     .send()
-///     .await?;
+/// #[tokio::main]
+/// async fn main() {
 ///
-/// println!("Rename Table Response: {:?}", resp);
-/// # Ok(())
-/// # }
-/// # }
+///     env_logger::builder()
+///         .filter_level(LevelFilter::Info)
+///         .format_timestamp_millis()
+///         .init();
+///
+///     let client = Client::new();
+///
+///     let rename_table_request = RenameTableRequest { current_name: "test_table2".to_string(), new_name: "test_drop_table".to_string() };
+///     rename_table(&client, &rename_table_request).await.unwrap();
+/// }
 /// ```
 pub async fn rename_table(client: &Client, rename_table_request: &RenameTableRequest) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/rename_table".to_string();
@@ -209,21 +229,32 @@ pub async fn rename_table(client: &Client, rename_table_request: &RenameTableReq
 /// # Examples
 ///
 /// ```
-/// # #[cfg(feature = "doc_examples")] {
-/// # use reqwest::Client;
-/// # use core::request_types::InsertColumnRequest;
-/// # async fn example(client: &Client, insert_column_request: &InsertColumnRequest) -> Result<(), Box<dyn error::Error>> {
-/// let url = format!("http://localhost:3000/insert_column");
+/// use log::LevelFilter;
+/// use reqwest::Client;
+/// use core::request_types::{InsertColumnRequest};
+/// use core::client_functions::insert_column;
 ///
-/// let resp = client.post(&url)
-///     .json(insert_column_request)
-///     .send()
-///     .await?;
+/// #[tokio::main]
+/// async fn main() {
 ///
-/// println!("Insert Column Response: {:?}", resp);
-/// # Ok(())
-/// # }
-/// # }
+///     env_logger::builder()
+///         .filter_level(LevelFilter::Info)
+///         .format_timestamp_millis()
+///         .init();
+///
+///     let client = Client::new();
+///
+///     // Insert columns
+///     let insert_column_request = InsertColumnRequest {
+///         table_name: "test_table".to_string(),
+///         key: "test_key".to_string(),
+///         primary_key: true,
+///         non_null: true,
+///         unique: true,
+///         foreign_key: None,
+///     };
+///     insert_column(&client, &insert_column_request).await.unwrap();
+/// }
 /// ```
 pub async fn insert_column(client: &Client, insert_column_request: &InsertColumnRequest) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/insert_column".to_string();
@@ -256,22 +287,31 @@ pub async fn insert_column(client: &Client, insert_column_request: &InsertColumn
 /// # Examples
 ///
 /// ```
-/// # #[cfg(feature = "doc_examples")] {
-/// # use reqwest::Client;
-/// # use core::{row::Row, value::Value};
-/// # use core::request_types::InsertRowRequest;
-/// # async fn example(client: &Client, insert_row_request: &InsertRowRequest) -> Result<(), Box<dyn error::Error>> {
-/// let url = format!("http://localhost:3000/insert_row");
+/// use log::LevelFilter;
+/// use reqwest::Client;
+/// use core::request_types::{InsertRowRequest};
+/// use core::client_functions::insert_row;
+/// use core::row::Row;
+/// use core::value::Value;
 ///
-/// let resp = client.post(&url)
-///     .json(insert_row_request)
-///     .send()
-///     .await?;
+/// #[tokio::main]
+/// async fn main() {
 ///
-/// println!("Insert Row Response: {:?}", resp);
-/// # Ok(())
-/// # }
-/// # }
+///     env_logger::builder()
+///         .filter_level(LevelFilter::Info)
+///         .format_timestamp_millis()
+///         .init();
+///
+///     let client = Client::new();
+///
+///  // Insert a row
+///     let insert_row_request = InsertRowRequest {
+///         table_name: "test_table".to_string(),
+///         row: Row::new(vec![Value::from("test_value".to_string()), Value::from(13)])
+///     };
+///
+///     insert_row(&client, &insert_row_request).await.unwrap();
+/// }
 /// ```
 pub async fn insert_row(client: &Client, insert_row_request: &InsertRowRequest) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/insert_row".to_string();
@@ -306,21 +346,33 @@ pub async fn insert_row(client: &Client, insert_row_request: &InsertRowRequest) 
 /// # Examples
 ///
 /// ```
-/// # #[cfg(feature = "doc_examples")] {
-/// # use reqwest::Client;
-/// # use core::request_types::{SelectRequest, Condition};
-/// # async fn example(client: &Client, select_request: &SelectRequest) -> Result<(), Box<dyn error::Error>> {
-/// let url = format!("http://localhost:3000/select");
+/// use log::LevelFilter;
+/// use reqwest::Client;
+/// use core::request_types::{SelectRequest, Condition};
+/// use core::client_functions::select;
 ///
-/// let resp = client.post(&url)
-///     .json(select_request)
-///     .send()
-///     .await?;
+/// #[tokio::main]
+/// async fn main() {
 ///
-/// println!("Select Response: {:?}", resp);
-/// # Ok(())
-/// # }
-/// # }
+///     env_logger::builder()
+///         .filter_level(LevelFilter::Info)
+///         .format_timestamp_millis()
+///         .init();
+///
+///     let client = Client::new();
+///
+/// // Select from the table with a condition
+///     let select_request = SelectRequest {
+///         table_name: "test_table".to_string(),
+///         columns: Option::from(vec!["test_key".to_string(), "test_key3".to_string()]), // Empty vec would mean *
+///         condition: Option::from(Condition {
+///             column: "test_key".to_string(),
+///             value: "true".to_string(),
+///         }),
+///     };
+///
+///     select(&client, &select_request).await.unwrap();
+/// }
 /// ```
 pub async fn select(client: &Client, select_request: &SelectRequest) -> Result<(), Box<dyn std::error::Error>> {
     let url = "http://localhost:3000/select".to_string();
@@ -359,21 +411,42 @@ pub async fn select(client: &Client, select_request: &SelectRequest) -> Result<(
 /// # Examples
 ///
 /// ```
-/// # #[cfg(feature = "doc_examples")] {
-/// # use reqwest::Client;
-/// # use core::request_types::UpdateRequest;
-/// # async fn example(client: &Client, update_request: &UpdateRequest) -> Result<(), Box<dyn error::Error>> {
-/// let url = format!("http://localhost:3000/update_table");
+/// use log::LevelFilter;
+/// use reqwest::Client;
+/// use core::request_types::{UpdateRequest, Condition, UpdateColumnRequest};
+/// use core::client_functions::update_table;
 ///
-/// let resp = client.post(&url)
-///    .json(update_request)
-///    .send()
-///    .await?;
+/// #[tokio::main]
+/// async fn main() {
 ///
-/// println!("Update Table Response: {:?}", resp);
-/// # Ok(())
-/// # }
-/// # }
+///     env_logger::builder()
+///         .filter_level(LevelFilter::Info)
+///         .format_timestamp_millis()
+///         .init();
+///
+///     let client = Client::new();
+///
+/// // Update rows in the table
+///     let update_request = UpdateRequest {
+///         table_name: "test_table".to_string(),
+///         condition: Option::from(Condition {
+///             column: "test_key".to_string(),
+///             value: "true".to_string(),
+///         }),
+///         updates: vec![
+///             UpdateColumnRequest {
+///                 column: "test_key3".to_string(),
+///                 value: "updated_value".to_string(),
+///             },
+///             UpdateColumnRequest {
+///                 column: "test_key2".to_string(),
+///                 value: "17.78".to_string(),
+///             },
+///         ],
+///     };
+///
+///     update_table(&client, &update_request).await.unwrap();
+/// }
 /// ```
 pub async fn update_table(client: &Client, update_request: &UpdateRequest) -> Result<(), Box<dyn error::Error>> {
     let url = "http://localhost:3000/update_table".to_string();
