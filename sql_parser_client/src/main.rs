@@ -15,6 +15,11 @@ async fn main() {
 
     let client = Client::new();
 
+    if let Err(e) = client.post("http://localhost:3000").send().await {
+        error!("Error, is the server on? :{}", e);
+        return;
+    }
+
     greet_and_list_operations();
 
     loop {

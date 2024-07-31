@@ -1,10 +1,12 @@
-use log::LevelFilter;
-use reqwest::Client;
-
 use core::client_functions::*;
-use core::request_types::{CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest, InsertRowRequest, SelectRequest, RenameTableRequest, Condition, UpdateRequest, UpdateColumnRequest};
+use core::request_types::{
+    Condition, CreateRequests, CreateTableRequests, DropTableRequest, InsertColumnRequest,
+    InsertRowRequest, RenameTableRequest, SelectRequest, UpdateColumnRequest, UpdateRequest,
+};
 use core::row::Row;
 use core::value::Value;
+use log::{error, LevelFilter};
+use reqwest::Client;
 
 /// This main function demonstrates the usage of various client functions with example values.
 ///
@@ -45,7 +47,6 @@ use core::value::Value;
 /// ```
 #[tokio::main]
 async fn main() {
-
     env_logger::builder()
         .filter_level(LevelFilter::Info)
         .format_timestamp_millis()
@@ -53,13 +54,46 @@ async fn main() {
 
     let client = Client::new();
 
+    if let Err(e) = client.post("http://localhost:3000").send().await {
+        error!("Error, is the server on? :{}", e);
+        return;
+    }
+
     // Drop previous tables
-    drop_table(&client, &DropTableRequest { name: "test_table".to_string() }).await.unwrap();
-    drop_table(&client, &DropTableRequest { name: "test_table2".to_string() }).await.unwrap();
-    drop_table(&client, &DropTableRequest { name: "test_drop_table".to_string() }).await.unwrap();
+    drop_table(
+        &client,
+        &DropTableRequest {
+            name: "test_table".to_string(),
+        },
+    )
+    .await
+    .unwrap();
+    drop_table(
+        &client,
+        &DropTableRequest {
+            name: "test_table2".to_string(),
+        },
+    )
+    .await
+    .unwrap();
+    drop_table(
+        &client,
+        &DropTableRequest {
+            name: "test_drop_table".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
     // Create a table
-    create(&client, &CreateRequests { name: "test_table".to_string() }).await.unwrap();
+    create(
+        &client,
+        &CreateRequests {
+            name: "test_table".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
     // Insert columns
     let insert_column_request = InsertColumnRequest {
@@ -89,25 +123,51 @@ async fn main() {
         foreign_key: None,
     };
 
-    insert_column(&client, &insert_column_request).await.unwrap();
-    insert_column(&client, &insert_column_request2).await.unwrap();
-    insert_column(&client, &insert_column_request3).await.unwrap();
+    insert_column(&client, &insert_column_request)
+        .await
+        .unwrap();
+    insert_column(&client, &insert_column_request2)
+        .await
+        .unwrap();
+    insert_column(&client, &insert_column_request3)
+        .await
+        .unwrap();
 
     // Create new table to be dropped
-    create_table(&client, &CreateTableRequests {
-        name: "test_table2".to_string(),
-        insert_column_requests: vec![insert_column_request3],
-    }).await.unwrap();
+    create_table(
+        &client,
+        &CreateTableRequests {
+            name: "test_table2".to_string(),
+            insert_column_requests: vec![insert_column_request3],
+        },
+    )
+    .await
+    .unwrap();
 
-    rename_table(&client, &RenameTableRequest { current_name: "test_table2".to_string(), new_name: "test_drop_table".to_string() }).await.unwrap();
+    rename_table(
+        &client,
+        &RenameTableRequest {
+            current_name: "test_table2".to_string(),
+            new_name: "test_drop_table".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
     // Drop the table
-    drop_table(&client, &DropTableRequest { name: "test_drop_table".to_string() }).await.unwrap();
+    drop_table(
+        &client,
+        &DropTableRequest {
+            name: "test_drop_table".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
     // Insert a row
     let insert_row_request = InsertRowRequest {
         table_name: "test_table".to_string(),
-        row: Row::new(vec![Value::from("test_value".to_string()), Value::from(13)])
+        row: Row::new(vec![Value::from("test_value".to_string()), Value::from(13)]),
     };
 
     insert_row(&client, &insert_row_request).await.unwrap();
@@ -115,7 +175,11 @@ async fn main() {
     // Insert a row
     let insert_row_request = InsertRowRequest {
         table_name: "test_table".to_string(),
-        row: Row::new(vec![Value::from(true), Value::from(27.55), Value::from(128)])
+        row: Row::new(vec![
+            Value::from(true),
+            Value::from(27.55),
+            Value::from(128),
+        ]),
     };
 
     insert_row(&client, &insert_row_request).await.unwrap();
@@ -123,11 +187,13 @@ async fn main() {
     // Insert a row
     let insert_row_request = InsertRowRequest {
         table_name: "test_table".to_string(),
-        row: Row::new(vec![Value::from("test_value_3".to_string()), Value::from(17.78)])
+        row: Row::new(vec![
+            Value::from("test_value_3".to_string()),
+            Value::from(17.78),
+        ]),
     };
 
     insert_row(&client, &insert_row_request).await.unwrap();
-
 
     // Select from the table without a condition
     let select_request = SelectRequest {
@@ -150,7 +216,6 @@ async fn main() {
 
     select(&client, &select_request).await.unwrap();
 
-
     // Update rows in the table
     let update_request = UpdateRequest {
         table_name: "test_table".to_string(),
@@ -171,5 +236,4 @@ async fn main() {
     };
 
     update_table(&client, &update_request).await.unwrap();
-
 }

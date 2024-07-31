@@ -176,10 +176,10 @@ pub async fn drop_table(
             info!("Dropped Table {:?}", drop_table_request.name);
         }
         false => {
-            debug!("Create Table Response: {:?}", resp);
+            debug!("Drop Table Response: {:?}", resp);
             let error_body = resp.json::<serde_json::Value>().await?;
             let error_message = error_body.as_str().unwrap_or("Unknown error");
-            error!("{}", error_message);
+            error!("Drop Table Response: {}", error_message);
         }
     }
     Ok(())
