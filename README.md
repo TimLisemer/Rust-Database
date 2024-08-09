@@ -57,12 +57,6 @@
   cargo run --package sql_parser_client --bin sql_parser_client
   ```
 
- Generate documentation for the SQL parser client:
-
-  ```bash
-  cargo doc --open --package sql_parser_client
-  ```
-
  ### Docker/Podman Usage
 
  To run the server using Docker or Podman, use docker-compose or podman-compose:
